@@ -9,3 +9,5 @@ pluginManagement {
 }
 
 rootProject.name = "ParadisePaints"
+include("minecraft-1.21.11")
+include("minecraft-26.1.2")

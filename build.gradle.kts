@@ -17,7 +17,7 @@ version = modVersion
 group = mavenGroup
 
 base {
-    archivesName = archivesBaseName
+    archivesName = "$archivesBaseName-fabric"
 }
 
 loom {
@@ -46,6 +46,9 @@ repositories {
 }
 
 dependencies {
+    testImplementation(platform("org.junit:junit-bom:5.11.4"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // To change the versions see the gradle.properties file.
     minecraft("com.mojang:minecraft:$minecraftVersion")
     implementation("net.fabricmc:fabric-loader:$loaderVersion")
@@ -54,19 +57,25 @@ dependencies {
 }
 
 tasks.processResources {
-    inputs.property("version", project.version)
+    inputs.property("version", modVersion)
     inputs.property("minecraft_version", minecraftVersion)
     inputs.property("loader_version", loaderVersion)
     filteringCharset = "UTF-8"
 
     filesMatching("fabric.mod.json") {
         expand(
-            "version" to project.version,
+            "version" to modVersion,
             "minecraft_version" to minecraftVersion,
             "loader_version" to loaderVersion,
         )
     }
 }
+
+sourceSets.test {
+    compileClasspath += sourceSets["client"].output
+    runtimeClasspath += sourceSets["client"].output
+}
+tasks.test { useJUnitPlatform() }
 
 val targetJavaVersion = 25
 
@@ -88,6 +97,7 @@ java {
 }
 
 tasks.jar {
+    archiveVersion = "$modVersion+mc$minecraftVersion"
     from("LICENSE") {
         rename { "${it}_$archivesBaseName" }
     }
@@ -105,3 +115,12 @@ publishing {
     repositories {
     }
 }
+
+val collectArtifacts = tasks.register<Sync>("collectArtifacts") {
+    dependsOn(":jar", ":minecraft-1.21.11:remapJar", ":minecraft-26.1.2:jar")
+    into(layout.buildDirectory.dir("distributions"))
+    from(layout.buildDirectory.dir("libs")) { include("paradisepaints-fabric-*.jar"); exclude("*sources*") }
+    from(project(":minecraft-1.21.11").layout.projectDirectory.dir("build/libs")) { include("paradisepaints-fabric-*.jar"); exclude("*dev*", "*sources*") }
+    from(project(":minecraft-26.1.2").layout.projectDirectory.dir("build/26.1.2/libs")) { include("paradisepaints-fabric-*.jar"); exclude("*sources*") }
+}
+tasks.build { dependsOn(collectArtifacts) }

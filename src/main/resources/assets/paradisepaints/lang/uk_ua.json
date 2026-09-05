@@ -1,0 +1,16 @@
+{
+  "paradisepaints.editor.pencil": "Олівець",
+  "paradisepaints.editor.eraser": "Затирачка",
+  "paradisepaints.editor.fill": "Заливка",
+  "paradisepaints.editor.brush": "Пензель: %s",
+  "paradisepaints.editor.undo": "Скасувати",
+  "paradisepaints.editor.redo": "Повторити",
+  "paradisepaints.editor.save": "Зберегти й вийти",
+  "paradisepaints.editor.retry": "Повторити збереження",
+  "paradisepaints.editor.close": "Закрити редактор",
+  "paradisepaints.editor.color": "Колір: %s · Esc — зберегти",
+  "paradisepaints.editor.saving": "Збереження…",
+  "paradisepaints.editor.timeout": "Немає підтвердження. Esc — повторити.",
+  "paradisepaints.editor.rejected": "Відмовлено у збереженні. Esc — повторити.",
+  "paradisepaints.editor.close-warning": "Закриття може втратити незбережені зміни."
+}

@@ -1,36 +1,50 @@
-# ParadisePaints
+# ParadisePaints для ParadiseCraft
 
-ParadisePaints is a client-side Fabric mod for painting Minecraft maps through
-communication with the ParadisePaints server plugin. It is intended as an
-alternative to MCPaint-based setups on plugin servers.
+ParadisePaints — мод для малювання картин на сервері `play.paradise-craft.com`.
+Він додає редактор полотна 128×128 з олівцем, пензлем, заливкою, затирачкою
+та скасуванням дій. Готова робота зберігається як мапа у грі.
 
-## Requirements
+Ця сторінка — місце, де гравці ParadiseCraft можуть знайти мод та інструкцію
+зі встановлення. Саме встановлення моду не надає права малювати:
+доступ відкривається на сервері.
 
-- Minecraft 26.2
-- Java 25
-- Fabric Loader 0.19.5 or newer
-- Fabric API
+## Завантаження
 
-## Development
+[Перейти до завантажень ParadisePaints](https://github.com/ParadiseCraft/ParadisePaints-Mod/releases)
 
-Use the checked-in Gradle wrapper so every contributor builds with the same
-Gradle version.
+У розділі **Releases** відкрийте потрібний випуск і завантажте JAR із блоку
+**Assets** для своєї версії Minecraft. Не завантажуйте архіви **Source code** —
+це вихідний код, а не готовий мод.
 
-```powershell
-.\gradlew.bat build
-```
+Використовуйте версію гри, рекомендовану адміністрацією ParadiseCraft.
+Для кожної версії потрібен окремий файл моду:
 
-The generated mod JAR is written to `build/libs/`. Local Gradle state, IDE
-files, Minecraft run directories, logs, and generated build output are ignored
-by Git.
+| Minecraft | Позначення у назві JAR | Java | Fabric API      |
+|-----------|------------------------|------|-----------------|
+| 1.21.11   | `+mc1.21.11`           | 21+  | 0.141.6+1.21.11 |
+| 26.1.2    | `+mc26.1.2`            | 25+  | 0.155.2+26.1.2  |
+| 26.2      | `+mc26.2`              | 25+  | 0.159.0+26.2    |
 
-## Source layout
+Потрібен **Fabric Loader 0.19.5 або новіший**. Перелік збірок моду не означає,
+що сервер одночасно приймає всі ці версії гри. Мод поки перебуває в розробці;
+ігрові перевірки сумісності ще тривають.
 
-- `src/main/java` — common mod initialization and code safe for any environment.
-- `src/main/resources` — Fabric metadata and common resources.
-- `src/client/java` — client-only initialization, UI, rendering, and input code.
-- `src/client/resources` — client-only resources and mixin configuration.
+## Як встановити
 
-## License
+1. Закрийте Minecraft і встановіть [Fabric Loader](https://fabricmc.net/use/installer/)
+   для потрібної версії гри.
+2. Завантажте [Fabric API](https://modrinth.com/mod/fabric-api)
+   та ParadisePaints для тієї самої версії Minecraft.
+3. Покладіть обидва JAR у папку `mods` вашого ігрового профілю.
+   JAR-файли розпаковувати не потрібно.
+4. Запустіть профіль Fabric у лаунчері.
+5. Додайте сервер `play.paradise-craft.com` у розділі мережевої гри та приєднайтеся.
 
-Copyright (c) 2026 Andromedov. All rights reserved.
+Під час оновлення приберіть старий JAR ParadisePaints із папки `mods`,
+щоб там залишилася лише одна версія моду.
+
+## Якщо щось не працює
+
+Перевірте, що запускаєте профіль Fabric, встановили Fabric API та вибрали
+ParadisePaints саме для своєї версії гри. Якщо проблема залишилася,
+повідомте адміністрації ParadiseCraft версію Minecraft і текст помилки.

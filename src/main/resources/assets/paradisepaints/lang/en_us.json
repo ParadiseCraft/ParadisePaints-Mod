@@ -1,0 +1,16 @@
+{
+  "paradisepaints.editor.pencil": "Pencil",
+  "paradisepaints.editor.eraser": "Eraser",
+  "paradisepaints.editor.fill": "Fill",
+  "paradisepaints.editor.brush": "Brush: %s",
+  "paradisepaints.editor.undo": "Undo",
+  "paradisepaints.editor.redo": "Redo",
+  "paradisepaints.editor.save": "Save and exit",
+  "paradisepaints.editor.retry": "Retry save",
+  "paradisepaints.editor.close": "Close editor",
+  "paradisepaints.editor.color": "Color: %s · Esc to save",
+  "paradisepaints.editor.saving": "Saving…",
+  "paradisepaints.editor.timeout": "No confirmation. Esc to retry.",
+  "paradisepaints.editor.rejected": "Save rejected. Esc to retry.",
+  "paradisepaints.editor.close-warning": "Closing may lose unsaved changes."
+}
