@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "paradisepaints",
+  "version": "${version}",
+  "name": "ParadisePaints",
+  "description": "A client-side painting mod designed to communicate with the ParadisePaints server plugin.",
+  "authors": [
+    "Andromedov"
+  ],
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-datagen": [
+      "me.andromedov.paradisepaints.client.ParadisepaintsDataGenerator"
+    ],
+    "client": [
+      "me.andromedov.paradisepaints.client.ParadisepaintsClient"
+    ],
+    "main": [
+      "me.andromedov.paradisepaints.Paradisepaints"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}

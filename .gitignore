@@ -1,0 +1,46 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Minecraft development runtime
+run/
+runs/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# Visual Studio Code
+.vscode/
+
+# Java diagnostics
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local-only configuration and environment files
+.env
+.env.*
+!.env.example
+local.properties
+
+# Temporary files
+*.log
+*.tmp
+*.swp
+*~
