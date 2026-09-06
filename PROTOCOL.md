@@ -26,9 +26,11 @@ even on mismatch. OPEN requires permissions, ownership, a reachable easel contai
 the original map, and an exclusive painting lock. The random session UUID is bound
 to the sending player and server-selected map ID. SAVE may change the title; the
 server validates both the title and pixels. DRAFT changes only pixels. When RGB
-pigments are enabled for the session, OPEN includes the server-owned balances and
-SAVE atomically debits the positive RGB channel differences from the last committed
-canvas. Transparent pixels have zero RGB cost; erasing never refunds pigment.
+pigments are enabled for the session, OPEN includes the balances of the physical
+palette that opened it. The session is bound to that palette's server-assigned item
+UUID. SAVE atomically journals its PDC debit together with the positive RGB channel
+differences from the last committed canvas. Transparent pixels have zero RGB cost;
+erasing never refunds pigment.
 
 GALLERY and GALLERY_ENTRY are server-initiated moderation data. There is deliberately
 no client-to-server gallery opcode. The server sends them only while executing

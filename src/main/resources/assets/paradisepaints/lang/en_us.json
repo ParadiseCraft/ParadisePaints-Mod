@@ -31,8 +31,8 @@
   "paradisepaints.editor.title": "Painting title",
   "paradisepaints.editor.title-required": "Enter a painting title",
   "paradisepaints.editor.pigment-stock": "Paint: R %s · G %s · B %s",
-  "paradisepaints.editor.pigment-help": "Refill: dye + right-click an easel",
-  "paradisepaints.editor.pigment-required": "Not enough RGB paint. Refill at an easel.",
+  "paradisepaints.editor.pigment-help": "Dyes in inventory + palette sneak-right-click on an easel",
+  "paradisepaints.editor.pigment-required": "This palette does not have enough RGB paint.",
   "paradisepaints.gallery.title": "Painting moderation",
   "paradisepaints.gallery.heading": "Paintings · page %s/%s · %s total",
   "paradisepaints.gallery.loading": "Loaded %s of %s…",
@@ -47,6 +47,10 @@
   "paradisepaints.gallery.updated": "Updated: %s",
   "paradisepaints.gallery.active": "Active",
   "paradisepaints.gallery.blocked-reason": "Blocked: %s",
-  "paradisepaints.gallery.block-command": "/pp block %s <reason>",
-  "paradisepaints.gallery.unblock-command": "/pp unblock %s"
+  "paradisepaints.gallery.block": "Block",
+  "paradisepaints.gallery.unblock": "Unblock",
+  "paradisepaints.gallery.reason": "Block reason",
+  "paradisepaints.gallery.reason-for": "Reason for blocking painting #%s",
+  "paradisepaints.gallery.confirm": "Confirm",
+  "paradisepaints.gallery.cancel": "Cancel"
 }

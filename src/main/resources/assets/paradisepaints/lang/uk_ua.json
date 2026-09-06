@@ -31,8 +31,8 @@
   "paradisepaints.editor.title": "Назва картини",
   "paradisepaints.editor.title-required": "Вкажіть назву картини",
   "paradisepaints.editor.pigment-stock": "Фарба: R %s · G %s · B %s",
-  "paradisepaints.editor.pigment-help": "Поповнення: барвник + ПКМ по мольберту",
-  "paradisepaints.editor.pigment-required": "Недостатньо RGB-фарби. Поповніть запас на мольберті.",
+  "paradisepaints.editor.pigment-help": "Барвники в інвентарі + палітра Shift+ПКМ по мольберту",
+  "paradisepaints.editor.pigment-required": "У цій палітрі недостатньо RGB-фарби.",
   "paradisepaints.gallery.title": "Модерація картин",
   "paradisepaints.gallery.heading": "Картини · сторінка %s/%s · усього %s",
   "paradisepaints.gallery.loading": "Завантажено %s із %s…",
@@ -47,6 +47,10 @@
   "paradisepaints.gallery.updated": "Оновлено: %s",
   "paradisepaints.gallery.active": "Активна",
   "paradisepaints.gallery.blocked-reason": "Заблокована: %s",
-  "paradisepaints.gallery.block-command": "/pp block %s <причина>",
-  "paradisepaints.gallery.unblock-command": "/pp unblock %s"
+  "paradisepaints.gallery.block": "Заблокувати",
+  "paradisepaints.gallery.unblock": "Розблокувати",
+  "paradisepaints.gallery.reason": "Причина блокування",
+  "paradisepaints.gallery.reason-for": "Причина блокування картини #%s",
+  "paradisepaints.gallery.confirm": "Готово",
+  "paradisepaints.gallery.cancel": "Скасувати"
 }
