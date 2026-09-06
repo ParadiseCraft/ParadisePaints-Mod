@@ -3,10 +3,12 @@ package me.andromedov.paradisepaints.client;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NonNull;
 
 public record PaintPayload(byte[] bytes) implements CustomPacketPayload {
-    public static final Type<PaintPayload> TYPE = CustomPacketPayload.createType("paradisepaints:paint");
+    // createType(String) assumes the minecraft namespace; our channel needs an explicit namespace.
+    public static final Type<PaintPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("paradisepaints", "paint"));
     public static final StreamCodec<RegistryFriendlyByteBuf, PaintPayload> CODEC = new StreamCodec<>() {
         public @NonNull PaintPayload decode(RegistryFriendlyByteBuf buffer) {
             int length=buffer.readableBytes();
@@ -20,4 +22,3 @@ public record PaintPayload(byte[] bytes) implements CustomPacketPayload {
     };
     public @NonNull Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
-

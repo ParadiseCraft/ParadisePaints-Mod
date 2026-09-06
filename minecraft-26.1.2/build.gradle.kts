@@ -15,6 +15,9 @@ loom {
     }
 }
 dependencies {
+    testImplementation(platform("org.junit:junit-bom:5.11.4"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     minecraft("com.mojang:minecraft:$game")
     implementation("net.fabricmc:fabric-loader:0.19.5")
     implementation("net.fabricmc.fabric-api:fabric-api:$api")
@@ -34,6 +37,12 @@ sourceSets.main {
     resources.srcDir(rootProject.file("src/main/resources"))
 }
 sourceSets["client"].java.srcDir(adaptClient)
+sourceSets.test {
+    java.srcDir(rootProject.file("src/test/java"))
+    compileClasspath += sourceSets["client"].output + sourceSets["client"].compileClasspath
+    runtimeClasspath += sourceSets["client"].output + sourceSets["client"].runtimeClasspath
+}
+tasks.test { useJUnitPlatform() }
 java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
 tasks.withType<JavaCompile>().configureEach { options.encoding = "UTF-8"; options.release = 25 }
 tasks.processResources {

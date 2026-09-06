@@ -74,6 +74,8 @@ tasks.processResources {
 sourceSets.test {
     compileClasspath += sourceSets["client"].output
     runtimeClasspath += sourceSets["client"].output
+    compileClasspath += sourceSets["client"].compileClasspath
+    runtimeClasspath += sourceSets["client"].runtimeClasspath
 }
 tasks.test { useJUnitPlatform() }
 
