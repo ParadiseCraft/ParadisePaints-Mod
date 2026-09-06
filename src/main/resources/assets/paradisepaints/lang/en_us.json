@@ -12,5 +12,14 @@
   "paradisepaints.editor.saving": "Saving…",
   "paradisepaints.editor.timeout": "No confirmation. Esc to retry.",
   "paradisepaints.editor.rejected": "Save rejected. Esc to retry.",
-  "paradisepaints.editor.close-warning": "Closing may lose unsaved changes."
+  "paradisepaints.editor.close-warning": "Closing may lose unsaved changes.",
+  "paradisepaints.editor.tools": "Tools",
+  "paradisepaints.editor.colors": "Colors",
+  "paradisepaints.editor.replace": "Replace",
+  "paradisepaints.editor.line": "Line",
+  "paradisepaints.editor.picker": "Picker",
+  "paradisepaints.editor.tolerance": "Fill tolerance: %s",
+  "paradisepaints.editor.hex": "HEX color",
+  "paradisepaints.editor.matched": "Map color: %s",
+  "paradisepaints.editor.hint": "RMB: pick · Ctrl+Z/Y: history"
 }

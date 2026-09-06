@@ -13,6 +13,8 @@ public final class CanvasModel {
         pixels = initial.clone();
     }
     public byte[] pixels() { return pixels.clone(); }
+    public boolean canUndo() { return !undo.isEmpty(); }
+    public boolean canRedo() { return !redo.isEmpty(); }
     public int color(int x, int y) { return Byte.toUnsignedInt(pixels[y * SIZE + x]); }
     public void beginStroke() {
         undo.addLast(pixels.clone());
@@ -42,18 +44,43 @@ public final class CanvasModel {
                 if (col>=0 && row>=0 && col<SIZE && row<SIZE) pixels[row*SIZE+col]=(byte)color;
     }
     public void fill(int x, int y, int color) {
+        fill(x,y,color,0,null,false);
+    }
+    /** Four-connected flood fill, or global replacement; tolerance is RGB distance per channel. */
+    public void fill(int x,int y,int color,int tolerance,int[] palette,boolean global) {
+        if(x<0 || y<0 || x>=SIZE || y>=SIZE || color<0 || color>=248 || tolerance<0 || tolerance>100)
+            throw new IllegalArgumentException("Fill bounds");
+        if(tolerance>0 && (palette==null || palette.length!=256)) throw new IllegalArgumentException("Palette required");
         int old=color(x,y);
-        if (old==color) return;
-        int[] queue=new int[SIZE*SIZE]; int head=0, tail=0;
-        int start=y*SIZE+x; queue[tail++]=start; pixels[start]=(byte)color;
+        if(global) {
+            for(int i=0;i<pixels.length;i++) if(matches(Byte.toUnsignedInt(pixels[i]),old,tolerance,palette)) pixels[i]=(byte)color;
+            return;
+        }
+        // Visited is separate from output: similar replacement colors must not be revisited.
+        boolean[] visited=new boolean[SIZE*SIZE];
+        int[] queue=new int[SIZE*SIZE]; int head=0,tail=0;
+        int start=y*SIZE+x; queue[tail++]=start; visited[start]=true;
         while(head<tail) {
             int at=queue[head++];
-            int[] neighbors={at%SIZE>0?at-1:-1, at%SIZE<SIZE-1?at+1:-1,
-                at>=SIZE?at-SIZE:-1, at<SIZE*(SIZE-1)?at+SIZE:-1};
-            for(int next:neighbors) if(next>=0 && Byte.toUnsignedInt(pixels[next])==old) {
-                pixels[next]=(byte)color; queue[tail++]=next;
+            pixels[at]=(byte)color;
+            for(int direction=0;direction<4;direction++) {
+                int next=switch(direction) {
+                    case 0 -> at%SIZE>0?at-1:-1;
+                    case 1 -> at%SIZE<SIZE-1?at+1:-1;
+                    case 2 -> at>=SIZE?at-SIZE:-1;
+                    default -> at<SIZE*(SIZE-1)?at+SIZE:-1;
+                };
+                if(next>=0 && !visited[next] && matches(Byte.toUnsignedInt(pixels[next]),old,tolerance,palette)) {
+                    visited[next]=true; queue[tail++]=next;
+                }
             }
         }
     }
+    private static boolean matches(int candidate,int old,int tolerance,int[] palette) {
+        if(candidate<4 || old<4) return candidate<4 && old<4;
+        if(tolerance==0) return candidate==old;
+        int a=palette[candidate],b=palette[old];
+        int r=((a>>>16)&255)-((b>>>16)&255),g=((a>>>8)&255)-((b>>>8)&255),blue=(a&255)-(b&255);
+        return r*r+g*g+blue*blue<=3*tolerance*tolerance;
+    }
 }
-

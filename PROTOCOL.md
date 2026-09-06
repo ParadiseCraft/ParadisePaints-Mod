@@ -18,9 +18,9 @@ transparent. The editor eraser writes 0. Canvas dimensions are fixed at 128x128.
 The protocol has an 18000-byte ceiling and does not accept client map IDs,
 author names, permissions, or arbitrary dimensions.
 
-The server initiates HELLO after joining (and when a command finds no handshake).
+The server initiates HELLO after joining (and when an interaction finds no handshake).
 The client advertises its own protocol version even on mismatch. The server rejects
-incompatible versions with an installation message. OPEN requires permissions, ownership, the held item,
+incompatible versions with an installation message. OPEN requires permissions, ownership, a reachable easel containing the original map,
 and an exclusive painting lock. The random session UUID is bound to the sending
 player and server-selected map ID.
 
@@ -39,7 +39,10 @@ once any outstanding write finishes. No player command is needed to recover.
 The client sends drafts every 100 client ticks. Reconnection creates a new
 session UUID and may restore a stored draft only if its base painting revision
 still matches. Disconnect releases its lock after any in-flight write finishes.
-The original map remains in the inventory.
+The original map remains in the easel inventory throughout editing and after SAVE.
+The server rechecks the easel, world, reach, map identity and author permissions for
+DRAFT and SAVE. Retrieval requires a separate sneak-right-click with an empty hand.
+MapLockPlus copy protection is independent of the exclusive editing-session lock.
 
 Changing this layout requires updating both implementations and a protocol-version
 decision. A handshake and session token never substitute for authorization.

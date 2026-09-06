@@ -12,5 +12,14 @@
   "paradisepaints.editor.saving": "Збереження…",
   "paradisepaints.editor.timeout": "Немає підтвердження. Esc — повторити.",
   "paradisepaints.editor.rejected": "Відмовлено у збереженні. Esc — повторити.",
-  "paradisepaints.editor.close-warning": "Закриття може втратити незбережені зміни."
+  "paradisepaints.editor.close-warning": "Закриття може втратити незбережені зміни.",
+  "paradisepaints.editor.tools": "Інструменти",
+  "paradisepaints.editor.colors": "Кольори",
+  "paradisepaints.editor.replace": "Заміна",
+  "paradisepaints.editor.line": "Лінія",
+  "paradisepaints.editor.picker": "Піпетка",
+  "paradisepaints.editor.tolerance": "Допуск заливки: %s",
+  "paradisepaints.editor.hex": "Колір HEX",
+  "paradisepaints.editor.matched": "На мапі: %s",
+  "paradisepaints.editor.hint": "ПКМ — колір · Ctrl+Z/Y — історія"
 }
