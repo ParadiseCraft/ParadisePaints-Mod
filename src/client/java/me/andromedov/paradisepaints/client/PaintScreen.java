@@ -20,25 +20,32 @@ public final class PaintScreen extends Screen {
     private final int[] colors;
     private final FavoriteColors favorites;
     private final ColorPickerModel customColor;
+    private final String initialTitle;
+    private final boolean pigments;
+    private final int pigmentRed,pigmentGreen,pigmentBlue;
     private final List<Button> toolWidgets=new ArrayList<>(),pageWidgets=new ArrayList<>();
     private final Deque<Integer> recent=new ArrayDeque<>();
     private final SaveAttempt saveAttempt=new SaveAttempt();
     private int left,top,scale,panel,panelWidth,cell,gridX,gridY,below,favoriteY;
     private int pickerX,pickerY,pickerWidth,pickerHeight,hueX,hueWidth;
     private int color=34,requestedRgb,brush=1,tool,lastX,lastY,startX,startY,ticks,page,tolerance,pickerDrag;
+    private int lastPickerX=Integer.MIN_VALUE,lastPickerY=Integer.MIN_VALUE;
     private boolean drawing,colorMenu,customMenu,syncingHex;
+    private Boolean favoriteSelected;
     private String status="";
     private Button saveButton,closeButton,undoButton,redoButton,toolsTab,colorsTab,presetsTab,customTab,favoriteButton;
-    private EditBox hex;
+    private EditBox hex,title;
 
-    public PaintScreen(UUID session,byte[] pixels,int[] colors) {
+    public PaintScreen(UUID session,String paintingTitle,byte[] pixels,int[] colors,boolean pigments,int red,int green,int blue) {
         super(Component.literal("ParadisePaints")); this.session=session;
         canvas=new CanvasModel(pixels); palette=new ColorPalette(colors); this.colors=palette.colors();
         favorites=FavoriteColors.openClient(); requestedRgb=palette.argb(color)&0xffffff;
         customColor=new ColorPickerModel(requestedRgb); recent.add(color);
+        this.initialTitle=paintingTitle;
+        this.pigments=pigments; pigmentRed=red; pigmentGreen=green; pigmentBlue=blue;
     }
     @Override protected void init() {
-        drawing=false; pickerDrag=0; toolWidgets.clear(); pageWidgets.clear();
+        drawing=false; pickerDrag=0; favoriteSelected=null; toolWidgets.clear(); pageWidgets.clear();
         panel=Math.max(134,width-202); panelWidth=Math.max(150,width-panel-8);
         scale=Math.max(1,Math.min((panel-22)/128,(height-104)/128));
         left=Math.max(8,(panel-128*scale)/2); top=Math.max(42,(height-70-128*scale)/2);
@@ -88,6 +95,8 @@ public final class PaintScreen extends Screen {
         favoriteButton=addRenderableWidget(Button.builder(text("add-favorite"),b->toggleFavorite())
                 .bounds(panel,below+48,panelWidth,18).build());
         favoriteY=below+72;
+        title=addRenderableWidget(new EditBox(font,panel,234,panelWidth,20,text("title")));
+        title.setMaxLength(32); title.setValue(initialTitle); title.setResponder(value->updateButtons());
         saveButton=addRenderableWidget(Button.builder(text("save"),b->onClose()).bounds(panel,height-26,panelWidth,20).build());
         closeButton=addRenderableWidget(Button.builder(text("close"),b->{
             if(saveAttempt.frozen() && !saveAttempt.waiting()) minecraft.gui.setScreen(null);
@@ -118,6 +127,12 @@ public final class PaintScreen extends Screen {
         if(colorMenu && !saveAttempt.frozen()) {
             if(customMenu) renderCustomPicker(g); else renderPresets(g);
             renderFavorites(g);
+        } else if(!saveAttempt.frozen() && pigments) {
+            label(g,text("pigment-stock",pigmentRed,pigmentGreen,pigmentBlue).getString(),panel,264,panelWidth,0xffd5dbe3);
+            for(var line:font.split(text("pigment-help"),panelWidth)) {
+                g.text(font,line,panel,282,0xff8996a7);
+                break;
+            }
         }
         if(saveAttempt.frozen()) {
             int y=58;
@@ -145,13 +160,14 @@ public final class PaintScreen extends Screen {
         label(g,(page+1)+" / 4",gridX+40,below+5,cell*8-80,0xffc9d5e4);
     }
     private void renderCustomPicker(GuiGraphicsExtractor g) {
-        for(int y=0;y<pickerHeight;y+=2) for(int x=0;x<pickerWidth;x+=2) {
+        int sample=4;
+        for(int y=0;y<pickerHeight;y+=sample) for(int x=0;x<pickerWidth;x+=sample) {
             int rgb=ColorPickerModel.rgb(customColor.hue(),x/(float)Math.max(1,pickerWidth-1),1-y/(float)Math.max(1,pickerHeight-1));
-            g.fill(pickerX+x,pickerY+y,pickerX+Math.min(pickerWidth,x+2),pickerY+Math.min(pickerHeight,y+2),0xff000000|rgb);
+            g.fill(pickerX+x,pickerY+y,pickerX+Math.min(pickerWidth,x+sample),pickerY+Math.min(pickerHeight,y+sample),0xff000000|rgb);
         }
-        for(int y=0;y<pickerHeight;y+=2) {
+        for(int y=0;y<pickerHeight;y+=sample) {
             int rgb=ColorPickerModel.rgb(y/(float)Math.max(1,pickerHeight-1),1,1);
-            g.fill(hueX,pickerY+y,hueX+hueWidth,pickerY+Math.min(pickerHeight,y+2),0xff000000|rgb);
+            g.fill(hueX,pickerY+y,hueX+hueWidth,pickerY+Math.min(pickerHeight,y+sample),0xff000000|rgb);
         }
         int markerX=pickerX+Math.round(customColor.saturation()*(pickerWidth-1));
         int markerY=pickerY+Math.round((1-customColor.value())*(pickerHeight-1));
@@ -192,8 +208,11 @@ public final class PaintScreen extends Screen {
         chooseRgb(palette.argb(index)&0xffffff,true,true);
     }
     private void chooseRgb(int rgb,boolean updateHex,boolean updatePicker) {
-        requestedRgb=rgb&0xffffff; color=palette.nearest(requestedRgb);
-        recent.remove(color); recent.addFirst(color); while(recent.size()>8) recent.removeLast();
+        requestedRgb=rgb&0xffffff;
+        int selected=palette.nearest(requestedRgb);
+        if(selected!=color) {
+            color=selected; recent.remove(color); recent.addFirst(color); while(recent.size()>8) recent.removeLast();
+        }
         if(updatePicker) customColor.setRgb(requestedRgb);
         if(updateHex) setHex(requestedRgb);
         refreshFavoriteButton();
@@ -209,23 +228,30 @@ public final class PaintScreen extends Screen {
         catch(IOException ignored) { status="favorite-error"; }
     }
     private void refreshFavoriteButton() {
-        if(favoriteButton!=null) favoriteButton.setMessage(text(favorites.contains(requestedRgb)?"remove-favorite":"add-favorite"));
+        boolean selected=favorites.contains(requestedRgb);
+        if(favoriteButton!=null && !java.util.Objects.equals(favoriteSelected,selected)) {
+            favoriteSelected=selected;
+            favoriteButton.setMessage(text(selected?"remove-favorite":"add-favorite"));
+        }
     }
-    private void updateCustomFromPointer(double x,double y,int area) {
+    private void updateCustomFromPointer(double x,double y,int area,boolean updateHex) {
+        int sampleX=(int)x,sampleY=(int)y;
+        if(sampleX==lastPickerX && sampleY==lastPickerY) return;
+        lastPickerX=sampleX; lastPickerY=sampleY;
         if(area==1) customColor.setSaturationValue((float)((x-pickerX)/Math.max(1,pickerWidth-1)),
                 1-(float)((y-pickerY)/Math.max(1,pickerHeight-1)));
         else customColor.setHue((float)((y-pickerY)/Math.max(1,pickerHeight-1)));
-        chooseRgb(customColor.rgb(),true,false);
+        chooseRgb(customColor.rgb(),updateHex,false);
     }
     @Override public boolean mouseClicked(@NonNull MouseButtonEvent event,boolean doubleClick) {
         if(saveAttempt.frozen()) return super.mouseClicked(event,doubleClick);
         double mx=event.x(),my=event.y();
         if(event.button()==0 && colorMenu && customMenu) {
             if(mx>=pickerX && mx<pickerX+pickerWidth && my>=pickerY && my<pickerY+pickerHeight) {
-                pickerDrag=1; updateCustomFromPointer(mx,my,1); return true;
+                pickerDrag=1; lastPickerX=lastPickerY=Integer.MIN_VALUE; updateCustomFromPointer(mx,my,1,true); return true;
             }
             if(mx>=hueX && mx<hueX+hueWidth && my>=pickerY && my<pickerY+pickerHeight) {
-                pickerDrag=2; updateCustomFromPointer(mx,my,2); return true;
+                pickerDrag=2; lastPickerX=lastPickerY=Integer.MIN_VALUE; updateCustomFromPointer(mx,my,2,true); return true;
             }
         }
         if(event.button()==0 && colorMenu && !customMenu && mx>=gridX && mx<gridX+8*cell && my>=gridY && my<gridY+8*cell) {
@@ -254,7 +280,7 @@ public final class PaintScreen extends Screen {
         if(pickerDrag!=0 && event.button()==0 && !saveAttempt.frozen()) {
             double x=Math.max(pickerX,Math.min(pickerX+pickerWidth-1,event.x()));
             double y=Math.max(pickerY,Math.min(pickerY+pickerHeight-1,event.y()));
-            updateCustomFromPointer(x,y,pickerDrag); return true;
+            updateCustomFromPointer(x,y,pickerDrag,false); return true;
         }
         if(drawing && event.button()==0 && !saveAttempt.frozen()) {
             if(!inside(event.x(),event.y())) { lastX=-1; return true; }
@@ -265,7 +291,9 @@ public final class PaintScreen extends Screen {
         return super.mouseDragged(event,dx,dy);
     }
     @Override public boolean mouseReleased(@NonNull MouseButtonEvent event) {
-        if(event.button()==0 && pickerDrag!=0) { pickerDrag=0; return true; }
+        if(event.button()==0 && pickerDrag!=0) {
+            pickerDrag=0; lastPickerX=lastPickerY=Integer.MIN_VALUE; setHex(requestedRgb); return true;
+        }
         if(event.button()==0 && drawing) {
             if(tool==4 && !saveAttempt.frozen() && inside(event.x(),event.y()))
                 canvas.line(startX,startY,(int)(event.x()-left)/scale,(int)(event.y()-top)/scale,brush,color);
@@ -274,7 +302,7 @@ public final class PaintScreen extends Screen {
         return super.mouseReleased(event);
     }
     @Override public boolean keyPressed(@NonNull KeyEvent event) {
-        if(!saveAttempt.frozen() && !hex.isFocused() && (event.modifiers()&(GLFW.GLFW_MOD_CONTROL|GLFW.GLFW_MOD_SUPER))!=0) {
+        if(!saveAttempt.frozen() && !hex.isFocused() && !title.isFocused() && (event.modifiers()&(GLFW.GLFW_MOD_CONTROL|GLFW.GLFW_MOD_SUPER))!=0) {
             if(event.key()==GLFW.GLFW_KEY_Z) {
                 drawing=false; if((event.modifiers()&GLFW.GLFW_MOD_SHIFT)!=0) canvas.redo(); else canvas.undo(); updateButtons(); return true;
             }
@@ -284,18 +312,20 @@ public final class PaintScreen extends Screen {
     }
     private boolean inside(double x,double y) { return x>=left && y>=top && x<left+128*scale && y<top+128*scale; }
     @Override public void tick() {
-        if(!saveAttempt.frozen() && ++ticks%100==0) ParadisepaintsClient.save(session,canvas.pixels(),false);
+        if(!saveAttempt.frozen() && ++ticks%100==0) ParadisepaintsClient.save(session,title.getValue(),canvas.pixels(),false);
         if(saveAttempt.tick()) { status="timeout"; updateButtons(); }
     }
     @Override public void onClose() {
         if(!saveAttempt.waiting()) {
+            if(title.getValue().trim().isEmpty()) { status="title-required"; return; }
             drawing=false; pickerDrag=0; status="saving";
-            ParadisepaintsClient.save(session,saveAttempt.begin(canvas.pixels()),true); updateButtons();
+            ParadisepaintsClient.save(session,title.getValue().trim(),saveAttempt.begin(canvas.pixels()),true); updateButtons();
         }
     }
-    public void acknowledge(UUID id,boolean ok) {
+    public void acknowledge(UUID id,int result) {
         if(!session.equals(id)||!saveAttempt.frozen()) return;
-        saveAttempt.rejected(); if(ok) minecraft.gui.setScreen(null); else { status="rejected"; updateButtons(); }
+        saveAttempt.rejected(); if(result==1) minecraft.gui.setScreen(null);
+        else { status=result==2?"pigment-required":"rejected"; updateButtons(); }
     }
     private void updateButtons() {
         boolean editable=!saveAttempt.frozen();
@@ -308,8 +338,9 @@ public final class PaintScreen extends Screen {
         for(Button button:pageWidgets) { button.visible=colorMenu && !customMenu && editable; button.active=editable; }
         hex.setVisible(colorMenu && editable); hex.setEditable(editable);
         favoriteButton.visible=colorMenu && editable; favoriteButton.active=editable;
+        title.setVisible(!colorMenu && editable); title.setEditable(editable);
         if(!colorMenu || !editable) hex.setFocused(false);
-        saveButton.active=!saveAttempt.waiting(); saveButton.setMessage(text(saveAttempt.frozen()?"retry":"save"));
+        saveButton.active=!saveAttempt.waiting() && !title.getValue().trim().isEmpty(); saveButton.setMessage(text(saveAttempt.frozen()?"retry":"save"));
         closeButton.visible=saveAttempt.frozen() && !saveAttempt.waiting(); refreshFavoriteButton();
     }
     private static Component text(String key,Object... args) { return Component.translatable("paradisepaints.editor."+key,args); }
