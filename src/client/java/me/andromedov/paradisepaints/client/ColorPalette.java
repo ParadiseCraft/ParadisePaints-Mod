@@ -26,8 +26,15 @@ public final class ColorPalette {
         return 0;
     }
     public OptionalInt nearest(String hex) {
-        if(!hex.matches("#?[0-9a-fA-F]{6}")) return OptionalInt.empty();
-        int rgb=Integer.parseInt(hex.startsWith("#")?hex.substring(1):hex,16),best=4;
+        OptionalInt rgb=parseRgb(hex);
+        return rgb.isPresent()?OptionalInt.of(nearest(rgb.getAsInt())):OptionalInt.empty();
+    }
+    public OptionalInt parseRgb(String hex) {
+        if(hex==null || !hex.matches("#?[0-9a-fA-F]{6}")) return OptionalInt.empty();
+        return OptionalInt.of(Integer.parseInt(hex.startsWith("#")?hex.substring(1):hex,16));
+    }
+    public int nearest(int rgb) {
+        int best=4;
         long distance=Long.MAX_VALUE;
         for(int index=4;index<248;index++) {
             int r=((rgb>>>16)&255)-((colors[index]>>>16)&255);
@@ -35,7 +42,7 @@ public final class ColorPalette {
             long score=2L*r*r+4L*g*g+3L*b*b;
             if(score<distance) { best=index; distance=score; }
         }
-        return OptionalInt.of(best);
+        return best;
     }
     private static int brightness(int rgb) { return Math.max((rgb>>>16)&255,Math.max((rgb>>>8)&255,rgb&255)); }
     private static double hue(int rgb) {

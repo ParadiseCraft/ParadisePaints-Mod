@@ -1,5 +1,6 @@
 package me.andromedov.paradisepaints.client;
 
+import java.io.IOException;
 import java.util.*;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -17,54 +18,84 @@ public final class PaintScreen extends Screen {
     private final CanvasModel canvas;
     private final ColorPalette palette;
     private final int[] colors;
-    private final List<Button> toolWidgets=new ArrayList<>(),colorWidgets=new ArrayList<>();
+    private final FavoriteColors favorites;
+    private final ColorPickerModel customColor;
+    private final List<Button> toolWidgets=new ArrayList<>(),pageWidgets=new ArrayList<>();
     private final Deque<Integer> recent=new ArrayDeque<>();
     private final SaveAttempt saveAttempt=new SaveAttempt();
-    private int left,top,scale,panel,cell,gridY,color=34,brush=1,tool,lastX,lastY,startX,startY,ticks,page,tolerance;
-    private boolean drawing,colorMenu;
+    private int left,top,scale,panel,panelWidth,cell,gridX,gridY,below,favoriteY;
+    private int pickerX,pickerY,pickerWidth,pickerHeight,hueX,hueWidth;
+    private int color=34,requestedRgb,brush=1,tool,lastX,lastY,startX,startY,ticks,page,tolerance,pickerDrag;
+    private boolean drawing,colorMenu,customMenu,syncingHex;
     private String status="";
-    private Button saveButton,closeButton,undoButton,redoButton,toolsTab,colorsTab;
+    private Button saveButton,closeButton,undoButton,redoButton,toolsTab,colorsTab,presetsTab,customTab,favoriteButton;
     private EditBox hex;
+
     public PaintScreen(UUID session,byte[] pixels,int[] colors) {
         super(Component.literal("ParadisePaints")); this.session=session;
-        canvas=new CanvasModel(pixels); palette=new ColorPalette(colors); this.colors=palette.colors(); recent.add(color);
+        canvas=new CanvasModel(pixels); palette=new ColorPalette(colors); this.colors=palette.colors();
+        favorites=FavoriteColors.openClient(); requestedRgb=palette.argb(color)&0xffffff;
+        customColor=new ColorPickerModel(requestedRgb); recent.add(color);
     }
     @Override protected void init() {
-        drawing=false; toolWidgets.clear(); colorWidgets.clear(); panel=width-154;
-        scale=Math.max(1,Math.min((panel-16)/128,(height-96)/128));
-        left=Math.max(6,(panel-128*scale)/2); top=Math.max(38,(height-64-128*scale)/2);
-        toolsTab=addRenderableWidget(Button.builder(text("tools"),b->{ colorMenu=false; updateButtons(); }).bounds(panel,28,70,20).build());
-        colorsTab=addRenderableWidget(Button.builder(text("colors"),b->{ colorMenu=true; updateButtons(); }).bounds(panel+74,28,70,20).build());
+        drawing=false; pickerDrag=0; toolWidgets.clear(); pageWidgets.clear();
+        panel=Math.max(134,width-202); panelWidth=Math.max(150,width-panel-8);
+        scale=Math.max(1,Math.min((panel-22)/128,(height-104)/128));
+        left=Math.max(8,(panel-128*scale)/2); top=Math.max(42,(height-70-128*scale)/2);
+        int gap=8,half=(panelWidth-gap)/2;
+        toolsTab=addRenderableWidget(Button.builder(text("tools"),b->{ colorMenu=false; updateButtons(); })
+                .bounds(panel,28,half,20).build());
+        colorsTab=addRenderableWidget(Button.builder(text("colors"),b->{ colorMenu=true; updateButtons(); })
+                .bounds(panel+half+gap,28,half,20).build());
         for(int i=0;i<TOOLS.length;i++) {
             int selected=i;
             toolWidgets.add(addRenderableWidget(Button.builder(text(TOOLS[i]),b->{ tool=selected; updateButtons(); })
-                    .bounds(panel+(i%2)*74,54+(i/2)*22,70,20).build()));
+                    .bounds(panel+(i%2)*(half+gap),58+(i/2)*28,half,22).build()));
         }
         toolWidgets.add(addRenderableWidget(Button.builder(text("brush",brush),b->{
             brush=brush==16?1:brush*2; b.setMessage(text("brush",brush));
-        }).bounds(panel,122,144,20).build()));
+        }).bounds(panel,146,panelWidth,22).build()));
         toolWidgets.add(addRenderableWidget(Button.builder(text("tolerance",tolerance),b->{
             tolerance=tolerance==60?0:tolerance+15; b.setMessage(text("tolerance",tolerance));
-        }).bounds(panel,144,144,20).build()));
-        undoButton=addRenderableWidget(Button.builder(text("undo"),b->{ canvas.undo(); updateButtons(); }).bounds(panel,166,70,20).build());
-        redoButton=addRenderableWidget(Button.builder(text("redo"),b->{ canvas.redo(); updateButtons(); }).bounds(panel+74,166,70,20).build());
+        }).bounds(panel,174,panelWidth,22).build()));
+        undoButton=addRenderableWidget(Button.builder(text("undo"),b->{ canvas.undo(); updateButtons(); })
+                .bounds(panel,202,half,22).build());
+        redoButton=addRenderableWidget(Button.builder(text("redo"),b->{ canvas.redo(); updateButtons(); })
+                .bounds(panel+half+gap,202,half,22).build());
         toolWidgets.add(undoButton); toolWidgets.add(redoButton);
-        gridY=54; cell=Math.max(8,Math.min(17,(height-144)/8)); int below=gridY+cell*8+4;
-        colorWidgets.add(addRenderableWidget(Button.builder(Component.literal("<"),b->{page=(page+3)%4;}).bounds(panel,below,30,18).build()));
-        colorWidgets.add(addRenderableWidget(Button.builder(Component.literal(">"),b->{page=(page+1)%4;}).bounds(panel+114,below,30,18).build()));
-        hex=addRenderableWidget(new EditBox(font,panel,below+24,144,18,text("hex")));
-        hex.setMaxLength(7); hex.setValue(palette.hex(color));
+
+        presetsTab=addRenderableWidget(Button.builder(text("presets"),b->{ customMenu=false; updateButtons(); })
+                .bounds(panel,58,half,20).build());
+        customTab=addRenderableWidget(Button.builder(text("custom"),b->{ customMenu=true; updateButtons(); })
+                .bounds(panel+half+gap,58,half,20).build());
+        gridY=86;
+        int gridSize=Math.min(panelWidth-18,Math.max(64,height-gridY-122));
+        cell=Math.max(8,gridSize/8); gridSize=cell*8; gridX=panel+(panelWidth-gridSize)/2;
+        below=gridY+gridSize+6;
+        pickerX=gridX; pickerY=gridY; pickerHeight=gridSize; pickerWidth=Math.max(40,gridSize-24);
+        hueWidth=14; hueX=pickerX+pickerWidth+8;
+        pageWidgets.add(addRenderableWidget(Button.builder(Component.literal("<"),b->{page=(page+3)%4;})
+                .bounds(gridX,below,32,18).build()));
+        pageWidgets.add(addRenderableWidget(Button.builder(Component.literal(">"),b->{page=(page+1)%4;})
+                .bounds(gridX+gridSize-32,below,32,18).build()));
+        hex=addRenderableWidget(new EditBox(font,panel,below+24,panelWidth,18,text("hex")));
+        hex.setMaxLength(7); setHex(requestedRgb);
         hex.setResponder(value->{
-            var nearest=palette.nearest(value); hex.setTextColor(nearest.isPresent()?0xffffffff:0xffff7777);
-            if(nearest.isPresent() && !saveAttempt.frozen()) select(nearest.getAsInt(),false);
+            if(syncingHex) return;
+            var parsed=palette.parseRgb(value); hex.setTextColor(parsed.isPresent()?0xffffffff:0xffff7777);
+            if(parsed.isPresent() && !saveAttempt.frozen()) chooseRgb(parsed.getAsInt(),false,true);
         });
-        saveButton=addRenderableWidget(Button.builder(text("save"),b->onClose()).bounds(panel,height-26,144,20).build());
+        favoriteButton=addRenderableWidget(Button.builder(text("add-favorite"),b->toggleFavorite())
+                .bounds(panel,below+48,panelWidth,18).build());
+        favoriteY=below+72;
+        saveButton=addRenderableWidget(Button.builder(text("save"),b->onClose()).bounds(panel,height-26,panelWidth,20).build());
         closeButton=addRenderableWidget(Button.builder(text("close"),b->{
             if(saveAttempt.frozen() && !saveAttempt.waiting()) minecraft.gui.setScreen(null);
-        }).bounds(panel,height-48,144,20).build()); updateButtons();
+        }).bounds(panel,height-50,panelWidth,20).build());
+        updateButtons();
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mouseX,int mouseY,float delta) {
-        g.fill(0,0,width,height,0xff171b22); g.fill(panel-6,22,width-4,height-4,0xff252c36);
+        g.fill(0,0,width,height,0xff171b22); g.fill(panel-8,20,width-4,height-4,0xff252c36);
         label(g,"ParadisePaints · "+text(TOOLS[tool]).getString(),10,10,width-20,0xfff4e7cf);
         frame(g,left-2,top-2,128*scale+4,128*scale+4,0xff8996a7);
         for(int y=0;y<128;y++) {
@@ -85,31 +116,61 @@ public final class PaintScreen extends Screen {
             }
         }
         if(colorMenu && !saveAttempt.frozen()) {
-            for(int i=0;i<64 && page*64+i<palette.size();i++) {
-                int index=palette.at(page*64+i),x=panel+(i%8)*cell,y=gridY+(i/8)*cell;
-                g.fill(x+1,y+1,x+cell-1,y+cell-1,palette.argb(index));
-                if(index==color) frame(g,x,y,cell,cell,0xffffffff);
-            }
-            int below=gridY+cell*8+4;
-            label(g,(page+1)+" / 4",panel+51,below+5,55,0xffc9d5e4);
-            label(g,text("matched",palette.hex(color)).getString(),panel,below+46,144,0xffc9d5e4);
+            if(customMenu) renderCustomPicker(g); else renderPresets(g);
+            renderFavorites(g);
         }
         if(saveAttempt.frozen()) {
             int y=58;
-            for(var line:font.split(text(status),144)) { g.text(font,line,panel,y,0xffc9d5e4); y+=11; }
+            for(var line:font.split(text(status),panelWidth)) { g.text(font,line,panel,y,0xffc9d5e4); y+=11; }
             if(!saveAttempt.waiting()) {
                 y+=12;
-                for(var line:font.split(text("close-warning"),144)) { g.text(font,line,panel,y,0xffffcc66); y+=11; }
+                for(var line:font.split(text("close-warning"),panelWidth)) { g.text(font,line,panel,y,0xffffcc66); y+=11; }
             }
         }
         int recentY=height-49,i=0;
         for(int index:recent) {
-            int x=left+i++*15; g.fill(x,recentY,x+13,recentY+13,palette.argb(index));
-            if(index==color) frame(g,x-1,recentY-1,15,15,0xffffffff);
+            int x=left+i++*18; g.fill(x,recentY,x+15,recentY+15,palette.argb(index));
+            if(index==color) frame(g,x-1,recentY-1,17,17,0xffffffff);
         }
-        label(g,status.isEmpty()?text("hint").getString():text(status).getString(),left,height-28,panel-left-10,0xffc9d5e4);
-        if(saveAttempt.frozen() && !saveAttempt.waiting()) label(g,text("close-warning").getString(),left,height-16,panel-left-10,0xffffcc66);
+        label(g,status.isEmpty()?text("hint").getString():text(status).getString(),left,height-28,panel-left-12,0xffc9d5e4);
+        if(saveAttempt.frozen() && !saveAttempt.waiting()) label(g,text("close-warning").getString(),left,height-16,panel-left-12,0xffffcc66);
         super.extractRenderState(g,mouseX,mouseY,delta);
+    }
+    private void renderPresets(GuiGraphicsExtractor g) {
+        for(int i=0;i<64 && page*64+i<palette.size();i++) {
+            int index=palette.at(page*64+i),x=gridX+(i%8)*cell,y=gridY+(i/8)*cell;
+            g.fill(x+2,y+2,x+cell-2,y+cell-2,palette.argb(index));
+            if(index==color) frame(g,x,y,cell,cell,0xffffffff);
+        }
+        label(g,(page+1)+" / 4",gridX+40,below+5,cell*8-80,0xffc9d5e4);
+    }
+    private void renderCustomPicker(GuiGraphicsExtractor g) {
+        for(int y=0;y<pickerHeight;y+=2) for(int x=0;x<pickerWidth;x+=2) {
+            int rgb=ColorPickerModel.rgb(customColor.hue(),x/(float)Math.max(1,pickerWidth-1),1-y/(float)Math.max(1,pickerHeight-1));
+            g.fill(pickerX+x,pickerY+y,pickerX+Math.min(pickerWidth,x+2),pickerY+Math.min(pickerHeight,y+2),0xff000000|rgb);
+        }
+        for(int y=0;y<pickerHeight;y+=2) {
+            int rgb=ColorPickerModel.rgb(y/(float)Math.max(1,pickerHeight-1),1,1);
+            g.fill(hueX,pickerY+y,hueX+hueWidth,pickerY+Math.min(pickerHeight,y+2),0xff000000|rgb);
+        }
+        int markerX=pickerX+Math.round(customColor.saturation()*(pickerWidth-1));
+        int markerY=pickerY+Math.round((1-customColor.value())*(pickerHeight-1));
+        frame(g,markerX-3,markerY-3,7,7,0xffffffff);
+        int hueY=pickerY+Math.round(customColor.hue()*(pickerHeight-1));
+        frame(g,hueX-2,hueY-2,hueWidth+4,5,0xffffffff);
+        label(g,text("matched",palette.hex(color)).getString(),gridX,below+5,cell*8,0xffc9d5e4);
+    }
+    private void renderFavorites(GuiGraphicsExtractor g) {
+        List<Integer> values=favorites.values();
+        if(values.isEmpty()) {
+            label(g,text("favorite-empty").getString(),panel,favoriteY+3,panelWidth,0xff8996a7);
+            return;
+        }
+        for(int i=0;i<values.size();i++) {
+            int rgb=values.get(i),x=panel+i*18;
+            g.fill(x,favoriteY,x+15,favoriteY+15,0xff000000|rgb);
+            if(rgb==requestedRgb) frame(g,x-1,favoriteY-1,17,17,0xffffffff);
+        }
     }
     private void label(GuiGraphicsExtractor g,String value,int x,int y,int max,int rgb) {
         g.text(font,font.plainSubstrByWidth(value,Math.max(0,max)),x,y,rgb);
@@ -126,24 +187,61 @@ public final class PaintScreen extends Screen {
                     left+Math.min(128,x-brush/2+brush)*scale,top+Math.min(128,y-brush/2+brush)*scale,palette.argb(color));
         }
     }
-    private void select(int index,boolean updateHex) {
+    private void chooseMap(int index) {
         if(index<4 || index>=248) return;
-        color=index; recent.remove(index); recent.addFirst(index); while(recent.size()>8) recent.removeLast();
-        if(updateHex) hex.setValue(palette.hex(index));
+        chooseRgb(palette.argb(index)&0xffffff,true,true);
+    }
+    private void chooseRgb(int rgb,boolean updateHex,boolean updatePicker) {
+        requestedRgb=rgb&0xffffff; color=palette.nearest(requestedRgb);
+        recent.remove(color); recent.addFirst(color); while(recent.size()>8) recent.removeLast();
+        if(updatePicker) customColor.setRgb(requestedRgb);
+        if(updateHex) setHex(requestedRgb);
+        refreshFavoriteButton();
+    }
+    private void setHex(int rgb) {
+        if(hex==null) return;
+        syncingHex=true;
+        try { hex.setValue(String.format(Locale.ROOT,"#%06X",rgb&0xffffff)); hex.setTextColor(0xffffffff); }
+        finally { syncingHex=false; }
+    }
+    private void toggleFavorite() {
+        try { favorites.toggle(requestedRgb); status=""; refreshFavoriteButton(); }
+        catch(IOException ignored) { status="favorite-error"; }
+    }
+    private void refreshFavoriteButton() {
+        if(favoriteButton!=null) favoriteButton.setMessage(text(favorites.contains(requestedRgb)?"remove-favorite":"add-favorite"));
+    }
+    private void updateCustomFromPointer(double x,double y,int area) {
+        if(area==1) customColor.setSaturationValue((float)((x-pickerX)/Math.max(1,pickerWidth-1)),
+                1-(float)((y-pickerY)/Math.max(1,pickerHeight-1)));
+        else customColor.setHue((float)((y-pickerY)/Math.max(1,pickerHeight-1)));
+        chooseRgb(customColor.rgb(),true,false);
     }
     @Override public boolean mouseClicked(@NonNull MouseButtonEvent event,boolean doubleClick) {
         if(saveAttempt.frozen()) return super.mouseClicked(event,doubleClick);
         double mx=event.x(),my=event.y();
-        if(event.button()==0 && colorMenu && mx>=panel && mx<panel+8*cell && my>=gridY && my<gridY+8*cell) {
-            int at=page*64+(int)(mx-panel)/cell+8*((int)(my-gridY)/cell);
-            if(at<palette.size()) select(palette.at(at),true); return true;
+        if(event.button()==0 && colorMenu && customMenu) {
+            if(mx>=pickerX && mx<pickerX+pickerWidth && my>=pickerY && my<pickerY+pickerHeight) {
+                pickerDrag=1; updateCustomFromPointer(mx,my,1); return true;
+            }
+            if(mx>=hueX && mx<hueX+hueWidth && my>=pickerY && my<pickerY+pickerHeight) {
+                pickerDrag=2; updateCustomFromPointer(mx,my,2); return true;
+            }
         }
-        if(event.button()==0 && my>=height-49 && my<height-36 && mx>=left && mx<left+recent.size()*15) {
-            select(new ArrayList<>(recent).get((int)(mx-left)/15),true); return true;
+        if(event.button()==0 && colorMenu && !customMenu && mx>=gridX && mx<gridX+8*cell && my>=gridY && my<gridY+8*cell) {
+            int at=page*64+(int)(mx-gridX)/cell+8*((int)(my-gridY)/cell);
+            if(at<palette.size()) chooseMap(palette.at(at)); return true;
+        }
+        List<Integer> favoriteValues=favorites.values();
+        if(event.button()==0 && colorMenu && my>=favoriteY && my<favoriteY+15 && mx>=panel && mx<panel+favoriteValues.size()*18) {
+            chooseRgb(favoriteValues.get((int)(mx-panel)/18),true,true); return true;
+        }
+        if(event.button()==0 && my>=height-49 && my<height-34 && mx>=left && mx<left+recent.size()*18) {
+            chooseMap(new ArrayList<>(recent).get((int)(mx-left)/18)); return true;
         }
         if(inside(mx,my)) {
             int x=(int)(mx-left)/scale,y=(int)(my-top)/scale;
-            if(event.button()==1 || (event.button()==0 && tool==5)) { select(canvas.color(x,y),true); return true; }
+            if(event.button()==1 || (event.button()==0 && tool==5)) { chooseMap(canvas.color(x,y)); return true; }
             if(event.button()!=0) return false;
             hex.setFocused(false); canvas.beginStroke(); lastX=startX=x; lastY=startY=y;
             if(tool==2 || tool==3) canvas.fill(x,y,color,tolerance,colors,tool==3);
@@ -153,6 +251,11 @@ public final class PaintScreen extends Screen {
         return super.mouseClicked(event,doubleClick);
     }
     @Override public boolean mouseDragged(@NonNull MouseButtonEvent event,double dx,double dy) {
+        if(pickerDrag!=0 && event.button()==0 && !saveAttempt.frozen()) {
+            double x=Math.max(pickerX,Math.min(pickerX+pickerWidth-1,event.x()));
+            double y=Math.max(pickerY,Math.min(pickerY+pickerHeight-1,event.y()));
+            updateCustomFromPointer(x,y,pickerDrag); return true;
+        }
         if(drawing && event.button()==0 && !saveAttempt.frozen()) {
             if(!inside(event.x(),event.y())) { lastX=-1; return true; }
             int x=(int)(event.x()-left)/scale,y=(int)(event.y()-top)/scale;
@@ -162,6 +265,7 @@ public final class PaintScreen extends Screen {
         return super.mouseDragged(event,dx,dy);
     }
     @Override public boolean mouseReleased(@NonNull MouseButtonEvent event) {
+        if(event.button()==0 && pickerDrag!=0) { pickerDrag=0; return true; }
         if(event.button()==0 && drawing) {
             if(tool==4 && !saveAttempt.frozen() && inside(event.x(),event.y()))
                 canvas.line(startX,startY,(int)(event.x()-left)/scale,(int)(event.y()-top)/scale,brush,color);
@@ -185,7 +289,7 @@ public final class PaintScreen extends Screen {
     }
     @Override public void onClose() {
         if(!saveAttempt.waiting()) {
-            drawing=false; status="saving";
+            drawing=false; pickerDrag=0; status="saving";
             ParadisepaintsClient.save(session,saveAttempt.begin(canvas.pixels()),true); updateButtons();
         }
     }
@@ -199,11 +303,14 @@ public final class PaintScreen extends Screen {
         for(Button button:toolWidgets) { button.visible=!colorMenu && editable; button.active=editable; }
         for(int i=0;i<TOOLS.length;i++) toolWidgets.get(i).active=editable && i!=tool;
         undoButton.active=editable && canvas.canUndo(); redoButton.active=editable && canvas.canRedo();
-        for(Button button:colorWidgets) { button.visible=colorMenu && editable; button.active=editable; }
+        presetsTab.visible=colorMenu && editable; customTab.visible=colorMenu && editable;
+        presetsTab.active=editable && customMenu; customTab.active=editable && !customMenu;
+        for(Button button:pageWidgets) { button.visible=colorMenu && !customMenu && editable; button.active=editable; }
         hex.setVisible(colorMenu && editable); hex.setEditable(editable);
+        favoriteButton.visible=colorMenu && editable; favoriteButton.active=editable;
         if(!colorMenu || !editable) hex.setFocused(false);
         saveButton.active=!saveAttempt.waiting(); saveButton.setMessage(text(saveAttempt.frozen()?"retry":"save"));
-        closeButton.visible=saveAttempt.frozen() && !saveAttempt.waiting();
+        closeButton.visible=saveAttempt.frozen() && !saveAttempt.waiting(); refreshFavoriteButton();
     }
     private static Component text(String key,Object... args) { return Component.translatable("paradisepaints.editor."+key,args); }
     @Override public boolean isPauseScreen() { return false; }

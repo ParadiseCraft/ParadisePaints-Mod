@@ -14,6 +14,8 @@ class ColorPaletteTest {
         int[] colors=new int[256]; colors[9]=0xffff0000; colors[248]=0xffff0100;
         var palette=new ColorPalette(colors);
         assertEquals(9,palette.nearest("#FF0100").orElseThrow());
+        assertEquals(9,palette.nearest(0xff0100));
+        assertEquals(0xff0100,palette.parseRgb("#FF0100").orElseThrow());
         assertEquals("#FF0000",palette.hex(9));
         for(String invalid:new String[]{"", "#FF", "#GG0000", "#FFFFFFFF", "1234567"}) assertTrue(palette.nearest(invalid).isEmpty());
         colors[9]=0; assertEquals("#FF0000",palette.hex(9));

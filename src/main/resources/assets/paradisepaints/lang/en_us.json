@@ -21,5 +21,11 @@
   "paradisepaints.editor.tolerance": "Fill tolerance: %s",
   "paradisepaints.editor.hex": "HEX color",
   "paradisepaints.editor.matched": "Map color: %s",
-  "paradisepaints.editor.hint": "RMB: pick · Ctrl+Z/Y: history"
+  "paradisepaints.editor.hint": "RMB: pick · Ctrl+Z/Y: history",
+  "paradisepaints.editor.presets": "Presets",
+  "paradisepaints.editor.custom": "Custom",
+  "paradisepaints.editor.add-favorite": "Add color to favorites",
+  "paradisepaints.editor.remove-favorite": "Remove color from favorites",
+  "paradisepaints.editor.favorite-empty": "No favorite colors yet",
+  "paradisepaints.editor.favorite-error": "Could not save favorite colors"
 }

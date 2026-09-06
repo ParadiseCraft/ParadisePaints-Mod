@@ -21,5 +21,11 @@
   "paradisepaints.editor.tolerance": "Допуск заливки: %s",
   "paradisepaints.editor.hex": "Колір HEX",
   "paradisepaints.editor.matched": "На мапі: %s",
-  "paradisepaints.editor.hint": "ПКМ — колір · Ctrl+Z/Y — історія"
+  "paradisepaints.editor.hint": "ПКМ — колір · Ctrl+Z/Y — історія",
+  "paradisepaints.editor.presets": "Готові",
+  "paradisepaints.editor.custom": "Власний",
+  "paradisepaints.editor.add-favorite": "Додати колір до вибраного",
+  "paradisepaints.editor.remove-favorite": "Прибрати колір із вибраного",
+  "paradisepaints.editor.favorite-empty": "Вибраних кольорів ще немає",
+  "paradisepaints.editor.favorite-error": "Не вдалося зберегти вибрані кольори"
 }
