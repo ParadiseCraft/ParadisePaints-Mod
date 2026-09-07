@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 
 public class ParadisepaintsClient implements ClientModInitializer {
-    public static final int PROTOCOL=4;
+    public static final int PROTOCOL=5;
     @Override public void onInitializeClient() {
         PayloadTypeRegistry.clientboundPlay().register(PaintPayload.TYPE, PaintPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(PaintPayload.TYPE, PaintPayload.CODEC);
@@ -50,6 +50,11 @@ public class ParadisepaintsClient implements ClientModInitializer {
                 if(entry==null) return;
                 client.execute(()->{
                     if(client.gui.screen() instanceof GalleryScreen screen && screen.request().equals(entry.request())) screen.add(entry);
+                });
+            } else if(op==7 && in.remaining()==16) {
+                UUID session=new UUID(in.getLong(),in.getLong());
+                client.execute(()->{
+                    if(client.gui.screen() instanceof PaintScreen screen) screen.closeFromServer(session);
                 });
             }
         });

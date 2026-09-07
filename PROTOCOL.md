@@ -1,4 +1,4 @@
-# ParadisePaints protocol 4
+# ParadisePaints protocol 5
 
 Transport: Minecraft play custom payload / Paper plugin messaging.
 Channel: `paradisepaints:paint`. No Fabric-specific length prefix inside the body.
@@ -6,16 +6,17 @@ Integers are big-endian. UUIDs are two signed 64-bit words (most, least).
 Each message starts with an unsigned one-byte opcode. No trailing fields are allowed.
 Strings are unsigned-int16 byte length followed by strict UTF-8 bytes.
 
-| Opcode          | Direction        | Body after opcode                                                                                                                                     | Total bytes          |
-|-----------------|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------|
-| 0 HELLO         | Server to client | int32 protocol version (4)                                                                                                                            | 5                    |
-| 0 HELLO         | Client to server | int32 protocol version (4), 32-byte SHA-256 of the installed mod JAR                                                                                  | 37                   |
-| 1 OPEN          | Server to client | UUID session, string title, byte pigments-enabled, int32 red/green/blue stock, 16384 pixels, 256 int32 ARGB palette entries                           | 17440 + title bytes  |
-| 2 SAVE          | Client to server | UUID session, int64 sequence, string title, 16384 pixels                                                                                              | 16411 + title bytes  |
-| 3 RESULT        | Server to client | UUID session, byte result (0 rejected, 1 committed, 2 insufficient pigments)                                                                          | 18                   |
-| 4 DRAFT         | Client to server | UUID session, int64 sequence, 16384 pixels                                                                                                            | 16409                |
-| 5 GALLERY       | Server to client | UUID request, int32 page/pages/total/entries, 256 int32 ARGB palette entries                                                                          | 1057                 |
+| Opcode | Direction | Body after opcode | Total bytes |
+|---|---|---|---|
+| 0 HELLO | Server to client | int32 protocol version (5) | 5 |
+| 0 HELLO | Client to server | int32 protocol version (5), 32-byte SHA-256 of the installed mod JAR | 37 |
+| 1 OPEN | Server to client | UUID session, string title, byte pigments-enabled, int32 red/green/blue stock, 16384 pixels, 256 int32 ARGB palette entries | 17440 + title bytes |
+| 2 SAVE | Client to server | UUID session, int64 sequence, string title, 16384 pixels | 16411 + title bytes |
+| 3 RESULT | Server to client | UUID session, byte result (0 rejected, 1 committed, 2 insufficient pigments) | 18 |
+| 4 DRAFT | Client to server | UUID session, int64 sequence, 16384 pixels | 16409 |
+| 5 GALLERY | Server to client | UUID request, int32 page/pages/total/entries, 256 int32 ARGB palette entries | 1057 |
 | 6 GALLERY_ENTRY | Server to client | UUID request, int32 map, int64 created/updated, byte blocked, int64 blocked-at or -1, strings title/author/author-UUID/moderator/reason, 16384 pixels | 16440 + string bytes |
+| 7 CLOSE | Server to client | UUID session | 17 |
 
 Pixels are row-major, unsigned map color indexes 0–247. Indexes 0–3 are
 transparent. The editor eraser writes 0. Canvas dimensions are fixed at 128x128.
@@ -28,20 +29,20 @@ classes directory reports 32 zero bytes. The plugin may compare this value with 
 `SHA256SUMS` asset published by the official GitHub release workflow. This detects
 wrong or accidentally modified builds, but is not an authenticity boundary: a hostile
 client can report an allowed hash. All authorization and resource limits remain server-side.
-OPEN requires server-side painting access, recorded authorship for
-an existing painting, a reachable easel containing the original item, and an exclusive editing lock. The random session UUID is bound
-to the sending player and server-selected map ID. SAVE may change the title; the
-server validates both the title and pixels. DRAFT changes only pixels. When RGB
-pigments are enabled for the session, OPEN includes the balances of the physical
-palette that opened it. The session is bound to that palette's server-assigned item
-UUID. SAVE atomically journals its PDC debit together with the positive RGB channel
-differences from the last committed canvas. Transparent pixels have zero RGB cost;
-erasing never refunds pigment.
+OPEN requires server-side painting access, recorded authorship for an existing
+painting, a reachable easel containing the original item, and an exclusive editing
+lock. The random session UUID is bound to the sending player and server-selected map
+ID. SAVE may change the title; the server validates both the title and pixels. DRAFT
+changes only pixels. When RGB pigments are enabled for the session, OPEN includes
+the balances of the physical palette that opened it. The session is bound to that
+palette's server-assigned item UUID. SAVE atomically journals its PDC debit together
+with the positive RGB channel differences from the last committed canvas. Transparent
+pixels have zero RGB cost; erasing never refunds pigment.
 
 GALLERY and GALLERY_ENTRY are server-initiated moderation data. There is deliberately
 no client-to-server gallery opcode. The server sends them only while executing
 `/pp paintings` for a player who currently has `paradisepaints.admin` and a
-protocol-4 handshake. One GALLERY header is followed by zero to six matching entries.
+protocol-5 handshake. One GALLERY header is followed by zero to six matching entries.
 The request UUID prevents entries from an older page being added to a newer screen.
 Opening a local screen or sending arbitrary mod packets never grants gallery access
 or moderation authority. Blocking and unblocking remain server commands with a
@@ -57,13 +58,19 @@ Invalid state rejects saving; storage failures allow retry. The client waits 200
 client ticks (normally ten seconds) before offering retry. Once SAVE is submitted,
 the canvas is frozen and every retry uses the identical snapshot.
 
+CLOSE invalidates only the matching editor session and closes it without submitting
+a SAVE. The server sends it after the player leaves the easel's interaction range or
+the session expires. A stored draft may be resumed after returning to the easel.
+
 Reconnection creates a new session UUID and may restore a stored draft only if its
 base painting revision still matches. Disconnect releases its lock after any
-in-flight write finishes. The original canvas or painting remains in the easel inventory throughout
-editing and after SAVE. The server rechecks the easel, world, reach, painting identity,
-server access, authorship and moderation status for DRAFT and SAVE. Retrieval requires
-a separate sneak-right-click with an empty hand. ParadisePaints never writes
-MapLockPlus lock tags; licensing is a separate workflow after retrieval.
+in-flight write finishes. The original canvas or painting remains in the easel
+inventory throughout editing and after SAVE. The server rechecks the easel, world,
+reach, painting identity, server access, authorship and moderation status for DRAFT
+and SAVE. Retrieval requires a separate sneak-right-click with an empty hand.
+Cartography-table duplicates are marked server-side and receive an independent map
+ID and database painting when the author first edits that physical copy. ParadisePaints
+never writes MapLockPlus lock tags; licensing is a separate workflow after retrieval.
 
 Changing this layout requires updating both implementations and a protocol-version
 decision. A handshake and session token never substitute for authorization.

@@ -509,6 +509,10 @@ public final class PaintScreen extends Screen {
         else { status=result==2?"pigment-required":"rejected"; updateButtons(); }
     }
 
+    public void closeFromServer(UUID id) {
+        if(session.equals(id)) minecraft.gui.setScreen(null);
+    }
+
     private void updateButtons() {
         boolean editable=!saveAttempt.frozen();
         for(Button button:toolWidgets) { button.visible=editable; button.active=editable; }
