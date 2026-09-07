@@ -19,6 +19,7 @@ public final class GalleryScreen extends Screen {
     private final int page,pages,total,expected;
     private final int[] palette;
     private final Map<Integer,GalleryEntry> entries=new LinkedHashMap<>();
+    private final Map<Integer,CanvasTexture> textures=new HashMap<>();
     private Button previous,next,confirm,cancel;
     private EditBox reason;
     private int selectedMap=-1;
@@ -71,15 +72,8 @@ public final class GalleryScreen extends Screen {
     }
     private void renderEntry(GuiGraphicsExtractor g,GalleryEntry entry,int x,int y,int width,int height,int mouseX,int mouseY) {
         g.fill(x,y,x+width,y+height,entry.blocked()?0xff3a2528:0xff252c36);
-        byte[] pixels=entry.pixels(); int image=96;
-        for(int py=0;py<image;py++) {
-            int sourceY=py*128/image,px=0;
-            while(px<image) {
-                int sourceX=px*128/image,color=Byte.toUnsignedInt(pixels[sourceY*128+sourceX]),end=px+1;
-                while(end<image && Byte.toUnsignedInt(pixels[sourceY*128+(end*128/image)])==color) end++;
-                g.fill(x+8+px,y+8+py,x+8+end,y+9+py,palette[color]); px=end;
-            }
-        }
+        textures.computeIfAbsent(entry.mapId(),ignored->new CanvasTexture(minecraft,entry.pixels(),palette))
+                .draw(g,x+8,y+8,96,96);
         int textX=x+112,max=width-120,textY=y+8;
         label(g,entry.title(),textX,textY,max,0xffffffff); textY+=14;
         label(g,text("type").getString(),textX,textY,max,0xff8bc8ff); textY+=12;
@@ -134,5 +128,6 @@ public final class GalleryScreen extends Screen {
         confirm.visible=selecting; confirm.active=selecting && !reason.getValue().trim().isEmpty();
         cancel.visible=selecting; cancel.active=selecting;
     }
+    @Override public void removed() { textures.values().forEach(CanvasTexture::close); textures.clear(); }
     @Override public boolean isPauseScreen() { return false; }
 }

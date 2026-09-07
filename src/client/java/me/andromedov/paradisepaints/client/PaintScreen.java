@@ -37,12 +37,16 @@ public final class PaintScreen extends Screen {
     private final List<Button> toolWidgets=new ArrayList<>(),sizeWidgets=new ArrayList<>(),toleranceWidgets=new ArrayList<>();
     private final Deque<Integer> recent=new ArrayDeque<>();
     private final SaveAttempt saveAttempt=new SaveAttempt();
+    private CanvasTexture canvasTexture;
+    private long renderedRevision=-1;
 
     private int left,top,scale,panel,panelWidth;
     private int toolX,toolY,toolWidth,sizeY,sizeWidth,toleranceY,toleranceWidth;
     private int gridX,gridY,cell,titleY,paintY,favoriteY;
     private int pickerX,pickerY,pickerWidth,pickerHeight,hueX,hueWidth,hexY;
     private int color=34,requestedRgb,brush=1,tool,lastX,lastY,startX,startY,ticks,tolerance,pickerDrag;
+    private long outboundSequence;
+    private byte[] lastDraft;
     private int lastPickerX=Integer.MIN_VALUE,lastPickerY=Integer.MIN_VALUE;
     private boolean drawing,customMenu,syncingHex;
     private Boolean favoriteSelected;
@@ -53,6 +57,7 @@ public final class PaintScreen extends Screen {
     public PaintScreen(UUID session,String paintingTitle,byte[] pixels,int[] colors,boolean pigments,int red,int green,int blue) {
         super(Component.literal("ParadisePaints")); this.session=session;
         canvas=new CanvasModel(pixels); palette=new ColorPalette(colors); this.colors=palette.colors();
+        lastDraft=pixels.clone();
         for(int i=0;i<VANILLA_RGB.length;i++) vanillaColors[i]=palette.nearest(VANILLA_RGB[i]);
         favorites=FavoriteColors.openClient(); requestedRgb=palette.argb(color)&0xffffff;
         customColor=new ColorPickerModel(requestedRgb); remember(color);
@@ -61,6 +66,7 @@ public final class PaintScreen extends Screen {
     }
 
     @Override protected void init() {
+        if(canvasTexture==null) canvasTexture=new CanvasTexture(minecraft,canvas.pixels(),colors);
         String currentTitle=title==null?initialTitle:title.getValue();
         drawing=false; pickerDrag=0; favoriteSelected=null;
         toolWidgets.clear(); sizeWidgets.clear(); toleranceWidgets.clear();
@@ -147,15 +153,10 @@ public final class PaintScreen extends Screen {
         label(g,"ParadisePaints · "+text(TOOLS[tool]).getString(),10,10,width-20,0xfff4e7cf);
         frame(g,left-2,top-2,128*scale+4,128*scale+4,0xff8996a7);
         renderTransparencyGrid(g);
-        for(int y=0;y<128;y++) {
-            int x=0;
-            while(x<128) {
-                int index=canvas.color(x,y),end=x+1;
-                while(end<128 && canvas.color(end,y)==index) end++;
-                if(index>=4) g.fill(left+x*scale,top+y*scale,left+end*scale,top+(y+1)*scale,palette.argb(index));
-                x=end;
-            }
+        if(renderedRevision!=canvas.revision()) {
+            canvasTexture.update(canvas.pixels(),colors); renderedRevision=canvas.revision();
         }
+        canvasTexture.draw(g,left,top,128*scale,128*scale);
         if(!saveAttempt.frozen() && inside(mouseX,mouseY)) {
             int x=(mouseX-left)/scale,y=(mouseY-top)/scale;
             if(tool==4 && drawing) previewLine(g,startX,startY,x,y);
@@ -484,7 +485,13 @@ public final class PaintScreen extends Screen {
     private boolean inside(double x,double y) { return x>=left && y>=top && x<left+128*scale && y<top+128*scale; }
 
     @Override public void tick() {
-        if(!saveAttempt.frozen() && ++ticks%100==0) ParadisepaintsClient.save(session,title.getValue(),canvas.pixels(),false);
+        if(!saveAttempt.frozen() && ++ticks%100==0) {
+            byte[] pixels=canvas.pixels();
+            if(lastDraft==null || !java.util.Arrays.equals(lastDraft,pixels)) {
+                lastDraft=pixels.clone();
+                ParadisepaintsClient.save(session,++outboundSequence,title.getValue(),pixels,false);
+            }
+        }
         if(saveAttempt.tick()) { status="timeout"; updateButtons(); }
     }
 
@@ -492,7 +499,7 @@ public final class PaintScreen extends Screen {
         if(!saveAttempt.waiting()) {
             if(title.getValue().trim().isEmpty()) { status="title-required"; return; }
             drawing=false; pickerDrag=0; status="saving";
-            ParadisepaintsClient.save(session,title.getValue().trim(),saveAttempt.begin(canvas.pixels()),true); updateButtons();
+            ParadisepaintsClient.save(session,++outboundSequence,title.getValue().trim(),saveAttempt.begin(canvas.pixels()),true); updateButtons();
         }
     }
 
@@ -527,5 +534,6 @@ public final class PaintScreen extends Screen {
     }
 
     private static Component text(String key,Object... args) { return Component.translatable("paradisepaints.editor."+key,args); }
+    @Override public void removed() { if(canvasTexture!=null) { canvasTexture.close(); canvasTexture=null; } }
     @Override public boolean isPauseScreen() { return false; }
 }

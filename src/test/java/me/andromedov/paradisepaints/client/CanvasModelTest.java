@@ -40,6 +40,7 @@ class CanvasModelTest {
     }
     @Test void newStrokeDiscardsRedoAndDoesNotExposePixels() {
         var c=new CanvasModel(new byte[16384]); c.beginStroke(); c.fill(0,0,9);
+        assertTrue(c.revision()>0);
         c.undo(); c.beginStroke(); c.line(1,1,1,1,1,4); c.redo();
         assertEquals(4,c.color(1,1)); assertEquals(0,c.color(0,0));
         c.pixels()[129]=22; assertEquals(4,c.color(1,1));

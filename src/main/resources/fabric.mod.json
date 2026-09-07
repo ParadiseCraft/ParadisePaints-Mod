@@ -3,7 +3,7 @@
   "id": "paradisepaints",
   "version": "${version}",
   "name": "ParadisePaints",
-  "description": "A client-side painting mod designed to communicate with the ParadisePaints server plugin.",
+  "description": "Мод для малювання картин на сервері ParadiseCraft.",
   "authors": [
     "Andromedov"
   ],

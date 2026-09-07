@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 
 public class ParadisepaintsClient implements ClientModInitializer {
-    public static final int PROTOCOL=3;
+    public static final int PROTOCOL=4;
     @Override public void onInitializeClient() {
         PayloadTypeRegistry.clientboundPlay().register(PaintPayload.TYPE, PaintPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(PaintPayload.TYPE, PaintPayload.CODEC);
@@ -20,7 +20,8 @@ public class ParadisepaintsClient implements ClientModInitializer {
             if(op==0 && in.remaining()==4) {
                 in.getInt();
                 // Advertise our own version even on mismatch so the server can explain rejection.
-                ClientPlayNetworking.send(new PaintPayload(ByteBuffer.allocate(5).put((byte)0).putInt(PROTOCOL).array()));
+                ClientPlayNetworking.send(new PaintPayload(ByteBuffer.allocate(37).put((byte)0).putInt(PROTOCOL)
+                        .put(ClientBuildIdentity.sha256()).array()));
             } else if(op==1 && in.remaining()>=16+2+1+1+12+16384+1024) {
                 UUID session=new UUID(in.getLong(),in.getLong());
                 int titleLength=Short.toUnsignedInt(in.getShort());
@@ -75,10 +76,11 @@ public class ParadisepaintsClient implements ClientModInitializer {
                     .decode(ByteBuffer.wrap(encoded)).toString();
         } catch(java.nio.charset.CharacterCodingException error) { return null; }
     }
-    public static void save(UUID session,String title,byte[] pixels,boolean close) {
+    public static void save(UUID session,long sequence,String title,byte[] pixels,boolean close) {
         byte[] encoded=title.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        ByteBuffer out=ByteBuffer.allocate(17+pixels.length+(close?2+encoded.length:0));
+        ByteBuffer out=ByteBuffer.allocate(25+pixels.length+(close?2+encoded.length:0));
         out.put((byte)(close?2:4)).putLong(session.getMostSignificantBits()).putLong(session.getLeastSignificantBits());
+        out.putLong(sequence);
         if(close) out.putShort((short)encoded.length).put(encoded);
         out.put(pixels);
         ClientPlayNetworking.send(new PaintPayload(out.array()));

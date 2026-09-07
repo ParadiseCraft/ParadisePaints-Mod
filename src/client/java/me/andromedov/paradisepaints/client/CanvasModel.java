@@ -7,6 +7,7 @@ import java.util.Deque;
 public final class CanvasModel {
     public static final int SIZE = 128;
     private byte[] pixels;
+    private long revision;
     private final Deque<byte[]> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
     public CanvasModel(byte[] initial) {
         if (initial.length != SIZE * SIZE) throw new IllegalArgumentException("Canvas size");
@@ -16,16 +17,17 @@ public final class CanvasModel {
     public boolean canUndo() { return !undo.isEmpty(); }
     public boolean canRedo() { return !redo.isEmpty(); }
     public int color(int x, int y) { return Byte.toUnsignedInt(pixels[y * SIZE + x]); }
+    public long revision() { return revision; }
     public void beginStroke() {
         undo.addLast(pixels.clone());
         if (undo.size() > 50) undo.removeFirst();
         redo.clear();
     }
     public void undo() {
-        if (!undo.isEmpty()) { redo.addLast(pixels.clone()); pixels = undo.removeLast(); }
+        if (!undo.isEmpty()) { redo.addLast(pixels.clone()); pixels = undo.removeLast(); revision++; }
     }
     public void redo() {
-        if (!redo.isEmpty()) { undo.addLast(pixels.clone()); pixels = redo.removeLast(); }
+        if (!redo.isEmpty()) { undo.addLast(pixels.clone()); pixels = redo.removeLast(); revision++; }
     }
     public void line(int x0, int y0, int x1, int y1, int size, int color) {
         int dx = Math.abs(x1-x0), sx = x0<x1?1:-1;
@@ -37,6 +39,7 @@ public final class CanvasModel {
             if (twice>=dy) { error+=dy; x0+=sx; }
             if (twice<=dx) { error+=dx; y0+=sy; }
         }
+        revision++;
     }
     private void dab(int x, int y, int size, int color) {
         for (int row=y-size/2; row<y-size/2+size; row++)
@@ -54,6 +57,7 @@ public final class CanvasModel {
         int old=color(x,y);
         if(global) {
             for(int i=0;i<pixels.length;i++) if(matches(Byte.toUnsignedInt(pixels[i]),old,tolerance,palette)) pixels[i]=(byte)color;
+            revision++;
             return;
         }
         // Visited is separate from output: similar replacement colors must not be revisited.
@@ -75,6 +79,7 @@ public final class CanvasModel {
                 }
             }
         }
+        revision++;
     }
     private static boolean matches(int candidate,int old,int tolerance,int[] palette) {
         if(candidate<4 || old<4) return candidate<4 && old<4;
