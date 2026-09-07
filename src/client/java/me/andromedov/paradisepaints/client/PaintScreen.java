@@ -42,7 +42,7 @@ public final class PaintScreen extends Screen {
 
     private int left,top,scale,panel,panelWidth;
     private int toolX,toolY,toolWidth,sizeY,sizeWidth,toleranceY,toleranceWidth;
-    private int gridX,gridY,recentGridY,cell,titleY,paintY,favoriteY,favoriteCell;
+    private int gridX,gridY,recentGridY,cell,titleY,paintY,favoriteY,favoriteWidth,favoriteHeight;
     private int pickerX,pickerY,pickerWidth,pickerHeight,hueX,hueWidth,hexY;
     private int color=34,requestedRgb,brush=1,tool,lastX,lastY,startX,startY,ticks,tolerance,pickerDrag;
     private long outboundSequence;
@@ -138,10 +138,11 @@ public final class PaintScreen extends Screen {
         favoriteButton=addRenderableWidget(Button.builder(Component.empty(),b->toggleFavorite())
                 .bounds(panel+panelWidth-22,hexY,22,18).build());
         favoriteY=hexY+24;
-        favoriteCell=Math.max(8,Math.min(12,panelWidth/16));
+        favoriteWidth=panelWidth-25;
+        favoriteHeight=12;
 
         int paletteBottom=recentGridY+cell*2;
-        int customBottom=favoriteY+favoriteCell;
+        int customBottom=favoriteY+favoriteHeight;
         titleY=Math.max(paletteBottom,customBottom)+7;
         paintY=titleY+24;
 
@@ -243,9 +244,9 @@ public final class PaintScreen extends Screen {
             return;
         }
         for(int i=0;i<values.size();i++) {
-            int rgb=values.get(i),x=panel+i*favoriteCell,y=favoriteY;
-            g.fill(x+1,y+1,x+favoriteCell-2,y+favoriteCell-2,0xff000000|rgb);
-            if(rgb==requestedRgb) frame(g,x,y,favoriteCell-1,favoriteCell-1,0xffffffff);
+            int rgb=values.get(i),x=panel+i*favoriteWidth/16,nextX=panel+(i+1)*favoriteWidth/16;
+            g.fill(x+1,favoriteY+1,nextX-1,favoriteY+favoriteHeight-1,0xff000000|rgb);
+            if(rgb==requestedRgb) frame(g,x,favoriteY,nextX-x,favoriteHeight,0xffffffff);
         }
     }
 
@@ -417,8 +418,8 @@ public final class PaintScreen extends Screen {
                 pickerDrag=2; lastPickerX=lastPickerY=Integer.MIN_VALUE; updateCustomFromPointer(mx,my,2,true); return true;
             }
             List<Integer> values=favorites.values();
-            if(my>=favoriteY && my<favoriteY+favoriteCell && mx>=panel && mx<panel+favoriteCell*16) {
-                int at=(int)(mx-panel)/favoriteCell;
+            if(my>=favoriteY && my<favoriteY+favoriteHeight && mx>=panel && mx<panel+favoriteWidth) {
+                int at=(int)((mx-panel)*16/favoriteWidth);
                 if(at<values.size()) chooseRgb(values.get(at),true,true);
                 return true;
             }
