@@ -69,9 +69,9 @@ public final class PaintScreen extends Screen {
         left=Math.max(8,(panel-128*scale)/2); top=Math.max(42,(height-70-128*scale)/2);
 
         int headerY=28;
-        redoButton=addRenderableWidget(Button.builder(Component.empty(),b->{ canvas.redo(); updateButtons(); }).tooltip(Tooltip.create(text("redo")))
+        redoButton=addRenderableWidget(Button.builder(Component.literal("↷"),b->{ canvas.redo(); updateButtons(); }).tooltip(Tooltip.create(text("redo")))
                 .bounds(panel+panelWidth-22,headerY,22,20).build());
-        undoButton=addRenderableWidget(Button.builder(Component.empty(),b->{ canvas.undo(); updateButtons(); }).tooltip(Tooltip.create(text("undo")))
+        undoButton=addRenderableWidget(Button.builder(Component.literal("↶"),b->{ canvas.undo(); updateButtons(); }).tooltip(Tooltip.create(text("undo")))
                 .bounds(panel+panelWidth-47,headerY,22,20).build());
 
         toolY=54;
@@ -146,12 +146,14 @@ public final class PaintScreen extends Screen {
         g.fill(0,0,width,height,0xff171b22); g.fill(panel-8,20,width-4,height-4,0xff252c36);
         label(g,"ParadisePaints · "+text(TOOLS[tool]).getString(),10,10,width-20,0xfff4e7cf);
         frame(g,left-2,top-2,128*scale+4,128*scale+4,0xff8996a7);
+        renderTransparencyGrid(g);
         for(int y=0;y<128;y++) {
             int x=0;
             while(x<128) {
                 int index=canvas.color(x,y),end=x+1;
                 while(end<128 && canvas.color(end,y)==index) end++;
-                g.fill(left+x*scale,top+y*scale,left+end*scale,top+(y+1)*scale,palette.argb(index)); x=end;
+                if(index>=4) g.fill(left+x*scale,top+y*scale,left+end*scale,top+(y+1)*scale,palette.argb(index));
+                x=end;
             }
         }
         if(!saveAttempt.frozen() && inside(mouseX,mouseY)) {
@@ -258,20 +260,20 @@ public final class PaintScreen extends Screen {
     }
 
     private void renderButtonIcons(GuiGraphicsExtractor g) {
-        renderArrow(g,panel+panelWidth-47,28,false,undoButton.active);
-        renderArrow(g,panel+panelWidth-22,28,true,redoButton.active);
         for(int i=0;i<TOOLS.length;i++) {
             int x=toolX+i*(toolWidth+TOOL_GAP),colorValue=toolWidgets.get(i).active?0xffe8edf4:0xff78818d;
             renderToolIcon(g,i,x,toolY,toolWidth,22,colorValue);
             if(i==tool) frame(g,x,toolY,toolWidth,22,ACTIVE_BORDER);
         }
-        for(int i=0;i<sizeWidgets.size();i++) if(BRUSH_SIZES[i]==brush) {
-            int x=panel+(i%4)*(sizeWidth+3),y=sizeY+(i/4)*21;
-            frame(g,x,y,sizeWidth,18,ACTIVE_BORDER);
-        }
-        for(int i=0;i<toleranceWidgets.size();i++) if(TOLERANCES[i]==tolerance) {
-            int x=panel+i*(toleranceWidth+3);
-            frame(g,x,toleranceY,toleranceWidth,18,ACTIVE_BORDER);
+        if(!customMenu) {
+            for(int i=0;i<sizeWidgets.size();i++) if(BRUSH_SIZES[i]==brush) {
+                int x=panel+(i%4)*(sizeWidth+3),y=sizeY+(i/4)*21;
+                frame(g,x,y,sizeWidth,18,ACTIVE_BORDER);
+            }
+            for(int i=0;i<toleranceWidgets.size();i++) if(TOLERANCES[i]==tolerance) {
+                int x=panel+i*(toleranceWidth+3);
+                frame(g,x,toleranceY,toleranceWidth,18,ACTIVE_BORDER);
+            }
         }
         int buttonX=panel+panelWidth-22,buttonY=customMenu?82:170;
         g.fill(buttonX+4,buttonY+4,buttonX+18,buttonY+14,0xff287fd1);
@@ -315,17 +317,6 @@ public final class PaintScreen extends Screen {
         }
     }
 
-    private static void renderArrow(GuiGraphicsExtractor g,int x,int y,boolean right,boolean enabled) {
-        int rgb=enabled?0xffe8edf4:0xff6c7480,cx=x+11,cy=y+10;
-        g.fill(cx-5,cy-3,cx+6,cy-2,rgb);
-        g.fill(right?cx+5:cx-6,cy-3,right?cx+6:cx-5,cy+4,rgb);
-        for(int i=0;i<4;i++) {
-            int px=right?cx+2+i:cx-3-i;
-            g.fill(px,cy-6+i,px+1,cy-5+i,rgb);
-            g.fill(px,cy+2-i,px+1,cy+3-i,rgb);
-        }
-    }
-
     private void renderFavoriteIcon(GuiGraphicsExtractor g,int x,int y) {
         int rgb=Boolean.TRUE.equals(favoriteSelected)?0xffffd35c:0xffe8edf4,cx=x+11,cy=y+9;
         g.fill(cx-5,cy,cx+6,cy+1,rgb); g.fill(cx,cy-5,cx+1,cy+6,rgb);
@@ -337,6 +328,14 @@ public final class PaintScreen extends Screen {
 
     private void label(GuiGraphicsExtractor g,String value,int x,int y,int max,int rgb) {
         g.text(font,font.plainSubstrByWidth(value,Math.max(0,max)),x,y,rgb);
+    }
+
+    private void renderTransparencyGrid(GuiGraphicsExtractor g) {
+        int square=8*scale;
+        for(int y=0;y<16;y++) for(int x=0;x<16;x++) {
+            int rgb=((x+y)&1)==0?0xffeeeeee:0xffaeb4bc;
+            g.fill(left+x*square,top+y*square,left+(x+1)*square,top+(y+1)*square,rgb);
+        }
     }
 
     private static void frame(GuiGraphicsExtractor g,int x,int y,int w,int h,int rgb) {
