@@ -1,4 +1,4 @@
-# ParadisePaints protocol 5
+# ParadisePaints protocol 6
 
 Transport: Minecraft play custom payload / Paper plugin messaging.
 Channel: `paradisepaints:paint`. No Fabric-specific length prefix inside the body.
@@ -8,9 +8,9 @@ Strings are unsigned-int16 byte length followed by strict UTF-8 bytes.
 
 | Opcode | Direction | Body after opcode | Total bytes |
 |---|---|---|---|
-| 0 HELLO | Server to client | int32 protocol version (5) | 5 |
-| 0 HELLO | Client to server | int32 protocol version (5), 32-byte SHA-256 of the installed mod JAR | 37 |
-| 1 OPEN | Server to client | UUID session, string title, byte pigments-enabled, int32 red/green/blue stock, 16384 pixels, 256 int32 ARGB palette entries | 17440 + title bytes |
+| 0 HELLO | Server to client | int32 protocol version (6) | 5 |
+| 0 HELLO | Client to server | int32 protocol version (6), 32-byte SHA-256 of the installed mod JAR | 37 |
+| 1 OPEN | Server to client | UUID session, string title, byte pigments-enabled, int32 red/green/blue stock, int32 per-channel capacity, 16384 pixels, 256 int32 ARGB palette entries | 17444 + title bytes |
 | 2 SAVE | Client to server | UUID session, int64 sequence, string title, 16384 pixels | 16411 + title bytes |
 | 3 RESULT | Server to client | UUID session, byte result (0 rejected, 1 committed, 2 insufficient pigments) | 18 |
 | 4 DRAFT | Client to server | UUID session, int64 sequence, 16384 pixels | 16409 |
@@ -42,7 +42,7 @@ pixels have zero RGB cost; erasing never refunds pigment.
 GALLERY and GALLERY_ENTRY are server-initiated moderation data. There is deliberately
 no client-to-server gallery opcode. The server sends them only while executing
 `/pp paintings` for a player who currently has `paradisepaints.admin` and a
-protocol-5 handshake. One GALLERY header is followed by zero to six matching entries.
+protocol-6 handshake. One GALLERY header is followed by zero to six matching entries.
 The request UUID prevents entries from an older page being added to a newer screen.
 Opening a local screen or sending arbitrary mod packets never grants gallery access
 or moderation authority. Blocking and unblocking remain server commands with a

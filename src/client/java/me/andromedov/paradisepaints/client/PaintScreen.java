@@ -33,7 +33,7 @@ public final class PaintScreen extends Screen {
     private final ColorPickerModel customColor;
     private final String initialTitle;
     private final boolean pigments;
-    private final int pigmentRed,pigmentGreen,pigmentBlue;
+    private final int pigmentRed,pigmentGreen,pigmentBlue,pigmentCapacity;
     private final List<Button> toolWidgets=new ArrayList<>(),sizeWidgets=new ArrayList<>(),toleranceWidgets=new ArrayList<>();
     private final Deque<Integer> recent=new ArrayDeque<>();
     private final SaveAttempt saveAttempt=new SaveAttempt();
@@ -42,7 +42,7 @@ public final class PaintScreen extends Screen {
 
     private int left,top,scale,panel,panelWidth;
     private int toolX,toolY,toolWidth,sizeY,sizeWidth,toleranceY,toleranceWidth;
-    private int gridX,gridY,cell,titleY,paintY,favoriteY;
+    private int gridX,gridY,recentGridY,cell,titleY,paintY,favoriteY,favoriteCell;
     private int pickerX,pickerY,pickerWidth,pickerHeight,hueX,hueWidth,hexY;
     private int color=34,requestedRgb,brush=1,tool,lastX,lastY,startX,startY,ticks,tolerance,pickerDrag;
     private long outboundSequence;
@@ -54,7 +54,8 @@ public final class PaintScreen extends Screen {
     private Button saveButton,closeButton,undoButton,redoButton,pickerButton,pickerCloseButton,favoriteButton;
     private EditBox hex,title;
 
-    public PaintScreen(UUID session,String paintingTitle,byte[] pixels,int[] colors,boolean pigments,int red,int green,int blue) {
+    public PaintScreen(UUID session,String paintingTitle,byte[] pixels,int[] colors,boolean pigments,int red,int green,int blue,
+            int capacity) {
         super(Component.literal("ParadisePaints")); this.session=session;
         canvas=new CanvasModel(pixels); palette=new ColorPalette(colors); this.colors=palette.colors();
         lastDraft=pixels.clone();
@@ -62,7 +63,7 @@ public final class PaintScreen extends Screen {
         favorites=FavoriteColors.openClient(); requestedRgb=palette.argb(color)&0xffffff;
         customColor=new ColorPickerModel(requestedRgb); remember(color);
         this.initialTitle=paintingTitle;
-        this.pigments=pigments; pigmentRed=red; pigmentGreen=green; pigmentBlue=blue;
+        this.pigments=pigments; pigmentRed=red; pigmentGreen=green; pigmentBlue=blue; pigmentCapacity=capacity;
     }
 
     @Override protected void init() {
@@ -110,23 +111,22 @@ public final class PaintScreen extends Screen {
             }).bounds(panel+i*(toleranceWidth+toleranceGap),toleranceY,toleranceWidth,18).build()));
         }
 
-        gridY=192;
-        int verticalSpace=Math.max(32,height-gridY-88);
+        gridY=197;
+        int verticalSpace=Math.max(32,height-gridY-112);
         cell=Math.max(8,Math.min(20,Math.min(panelWidth/8,verticalSpace/4)));
         gridX=panel+(panelWidth-cell*8)/2;
-        titleY=gridY+cell*4+7;
-        paintY=titleY+24;
+        recentGridY=gridY+cell*2+13;
 
         pickerButton=addRenderableWidget(Button.builder(Component.empty(),b->{
             customMenu=!customMenu; updateButtons();
         }).tooltip(Tooltip.create(text("custom"))).bounds(panel+panelWidth-22,170,22,18).build());
         pickerCloseButton=addRenderableWidget(Button.builder(Component.empty(),b->{
             customMenu=false; updateButtons();
-        }).tooltip(Tooltip.create(text("presets"))).bounds(panel+panelWidth-22,82,22,18).build());
+        }).tooltip(Tooltip.create(text("presets"))).bounds(panel+panelWidth-22,170,22,18).build());
 
-        pickerX=panel; pickerY=106;
+        pickerX=panel; pickerY=gridY;
         pickerWidth=Math.max(64,panelWidth-24); hueWidth=14; hueX=pickerX+pickerWidth+8;
-        pickerHeight=Math.max(48,Math.min(128,height-pickerY-98));
+        pickerHeight=Math.max(42,Math.min(72,height-pickerY-170));
         hexY=pickerY+pickerHeight+6;
         hex=addRenderableWidget(new EditBox(font,panel,hexY,panelWidth-25,18,text("hex")));
         hex.setMaxLength(7); setHex(requestedRgb);
@@ -138,6 +138,12 @@ public final class PaintScreen extends Screen {
         favoriteButton=addRenderableWidget(Button.builder(Component.empty(),b->toggleFavorite())
                 .bounds(panel+panelWidth-22,hexY,22,18).build());
         favoriteY=hexY+24;
+        favoriteCell=Math.max(8,Math.min(12,panelWidth/16));
+
+        int paletteBottom=recentGridY+cell*2;
+        int customBottom=favoriteY+favoriteCell;
+        titleY=Math.max(paletteBottom,customBottom)+7;
+        paintY=titleY+24;
 
         title=addRenderableWidget(new EditBox(font,panel,titleY,panelWidth,20,text("title")));
         title.setMaxLength(32); title.setValue(currentTitle); title.setResponder(value->updateButtons());
@@ -169,18 +175,16 @@ public final class PaintScreen extends Screen {
 
         if(!saveAttempt.frozen()) {
             label(g,text("tools").getString(),panel,34,panelWidth-54,0xffd5dbe3);
-            if(!customMenu) {
-                label(g,text("size").getString(),panel,84,panelWidth,0xffd5dbe3);
-                label(g,text("tolerance",tolerance).getString(),panel,138,panelWidth,0xff8996a7);
-            }
-            label(g,text("colors").getString(),panel,customMenu?86:174,panelWidth-27,0xffd5dbe3);
+            label(g,text("size").getString(),panel,84,panelWidth,0xffd5dbe3);
+            label(g,text("tolerance",tolerance).getString(),panel,138,panelWidth,0xff8996a7);
+            label(g,text("colors").getString(),panel,174,panelWidth-27,0xffd5dbe3);
             if(customMenu) {
                 renderCustomPicker(g);
                 renderFavorites(g);
             } else {
                 renderPalette(g);
-                if(pigments) renderPaintStock(g);
             }
+            if(pigments) renderPaintStock(g);
         } else {
             int y=58;
             for(var line:font.split(text(status),panelWidth)) { g.text(font,line,panel,y,0xffc9d5e4); y+=11; }
@@ -198,20 +202,18 @@ public final class PaintScreen extends Screen {
 
     private void renderPalette(GuiGraphicsExtractor g) {
         List<Integer> recentColors=new ArrayList<>(recent);
-        for(int i=0;i<32;i++) {
-            int x=gridX+(i%8)*cell,y=gridY+(i/8)*cell;
-            if(i<16) {
-                int index=vanillaColors[i];
-                g.fill(x+1,y+1,x+cell-1,y+cell-1,palette.argb(index));
-                if(index==color) frame(g,x,y,cell,cell,0xffffffff);
-            } else {
-                int at=i-16;
-                g.fill(x+1,y+1,x+cell-1,y+cell-1,0xff1b2028);
-                if(at<recentColors.size()) {
-                    int index=recentColors.get(at);
-                    g.fill(x+1,y+1,x+cell-1,y+cell-1,palette.argb(index));
-                    if(index==color) frame(g,x,y,cell,cell,0xffffffff);
-                }
+        label(g,text("default-colors").getString(),gridX,gridY-10,cell*8,0xff8996a7);
+        label(g,text("recent-colors").getString(),gridX,recentGridY-10,cell*8,0xff8996a7);
+        for(int i=0;i<16;i++) {
+            int x=gridX+(i%8)*cell,y=gridY+(i/8)*cell,index=vanillaColors[i];
+            g.fill(x+1,y+1,x+cell-1,y+cell-1,palette.argb(index));
+            if(index==color) frame(g,x,y,cell,cell,0xffffffff);
+            int recentX=gridX+(i%8)*cell,recentY=recentGridY+(i/8)*cell;
+            g.fill(recentX+1,recentY+1,recentX+cell-1,recentY+cell-1,0xff1b2028);
+            if(i<recentColors.size()) {
+                int recentIndex=recentColors.get(i);
+                g.fill(recentX+1,recentY+1,recentX+cell-1,recentY+cell-1,palette.argb(recentIndex));
+                if(recentIndex==color) frame(g,recentX,recentY,cell,cell,0xffffffff);
             }
         }
     }
@@ -235,13 +237,13 @@ public final class PaintScreen extends Screen {
 
     private void renderFavorites(GuiGraphicsExtractor g) {
         List<Integer> values=favorites.values();
+        label(g,text("favorites").getString(),panel,favoriteY-10,panelWidth,0xff8996a7);
         if(values.isEmpty()) {
-            label(g,text("favorite-empty").getString(),panel,favoriteY+3,panelWidth,0xff8996a7);
+            label(g,text("favorite-empty").getString(),panel,favoriteY+1,panelWidth,0xff8996a7);
             return;
         }
-        int favoriteCell=Math.max(14,Math.min(18,panelWidth/8));
         for(int i=0;i<values.size();i++) {
-            int rgb=values.get(i),x=panel+(i%8)*favoriteCell,y=favoriteY+(i/8)*favoriteCell;
+            int rgb=values.get(i),x=panel+i*favoriteCell,y=favoriteY;
             g.fill(x+1,y+1,x+favoriteCell-2,y+favoriteCell-2,0xff000000|rgb);
             if(rgb==requestedRgb) frame(g,x,y,favoriteCell-1,favoriteCell-1,0xffffffff);
         }
@@ -257,7 +259,7 @@ public final class PaintScreen extends Screen {
 
     private void renderPaintChannel(GuiGraphicsExtractor g,int x,int y,int width,String channel,int amount,int rgb) {
         g.fill(x,y,x+2,y+9,rgb);
-        label(g,channel+" "+formatAmount(amount),x+5,y,width-5,0xffd5dbe3);
+        label(g,channel+" "+formatPercent(amount,pigmentCapacity),x+5,y,width-5,0xffd5dbe3);
     }
 
     private void renderButtonIcons(GuiGraphicsExtractor g) {
@@ -266,17 +268,15 @@ public final class PaintScreen extends Screen {
             renderToolIcon(g,i,x,toolY,toolWidth,22,colorValue);
             if(i==tool) frame(g,x,toolY,toolWidth,22,ACTIVE_BORDER);
         }
-        if(!customMenu) {
-            for(int i=0;i<sizeWidgets.size();i++) if(BRUSH_SIZES[i]==brush) {
-                int x=panel+(i%4)*(sizeWidth+3),y=sizeY+(i/4)*21;
-                frame(g,x,y,sizeWidth,18,ACTIVE_BORDER);
-            }
-            for(int i=0;i<toleranceWidgets.size();i++) if(TOLERANCES[i]==tolerance) {
-                int x=panel+i*(toleranceWidth+3);
-                frame(g,x,toleranceY,toleranceWidth,18,ACTIVE_BORDER);
-            }
+        for(int i=0;i<sizeWidgets.size();i++) if(BRUSH_SIZES[i]==brush) {
+            int x=panel+(i%4)*(sizeWidth+3),y=sizeY+(i/4)*21;
+            frame(g,x,y,sizeWidth,18,ACTIVE_BORDER);
         }
-        int buttonX=panel+panelWidth-22,buttonY=customMenu?82:170;
+        for(int i=0;i<toleranceWidgets.size();i++) if(TOLERANCES[i]==tolerance) {
+            int x=panel+i*(toleranceWidth+3);
+            frame(g,x,toleranceY,toleranceWidth,18,ACTIVE_BORDER);
+        }
+        int buttonX=panel+panelWidth-22,buttonY=170;
         g.fill(buttonX+4,buttonY+4,buttonX+18,buttonY+14,0xff287fd1);
         if(customMenu) {
             g.fill(buttonX+7,buttonY+8,buttonX+15,buttonY+9,0xffffffff);
@@ -417,21 +417,23 @@ public final class PaintScreen extends Screen {
                 pickerDrag=2; lastPickerX=lastPickerY=Integer.MIN_VALUE; updateCustomFromPointer(mx,my,2,true); return true;
             }
             List<Integer> values=favorites.values();
-            int favoriteCell=Math.max(14,Math.min(18,panelWidth/8));
-            if(my>=favoriteY && my<favoriteY+favoriteCell*2 && mx>=panel && mx<panel+favoriteCell*8) {
-                int at=(int)(mx-panel)/favoriteCell+8*((int)(my-favoriteY)/favoriteCell);
+            if(my>=favoriteY && my<favoriteY+favoriteCell && mx>=panel && mx<panel+favoriteCell*16) {
+                int at=(int)(mx-panel)/favoriteCell;
                 if(at<values.size()) chooseRgb(values.get(at),true,true);
                 return true;
             }
         }
-        if(event.button()==0 && !customMenu && mx>=gridX && mx<gridX+8*cell && my>=gridY && my<gridY+4*cell) {
-            int at=(int)(mx-gridX)/cell+8*((int)(my-gridY)/cell);
-            if(at<16) chooseMap(vanillaColors[at]);
-            else {
-                List<Integer> values=new ArrayList<>(recent); int recentAt=at-16;
-                if(recentAt<values.size()) chooseMap(values.get(recentAt));
+        if(event.button()==0 && !customMenu && mx>=gridX && mx<gridX+8*cell) {
+            if(my>=gridY && my<gridY+2*cell) {
+                int at=(int)(mx-gridX)/cell+8*((int)(my-gridY)/cell);
+                chooseMap(vanillaColors[at]); return true;
             }
-            return true;
+            if(my>=recentGridY && my<recentGridY+2*cell) {
+                int at=(int)(mx-gridX)/cell+8*((int)(my-recentGridY)/cell);
+                List<Integer> values=new ArrayList<>(recent);
+                if(at<values.size()) chooseMap(values.get(at));
+                return true;
+            }
         }
         if(inside(mx,my)) {
             int x=(int)(mx-left)/scale,y=(int)(my-top)/scale;
@@ -516,25 +518,25 @@ public final class PaintScreen extends Screen {
     private void updateButtons() {
         boolean editable=!saveAttempt.frozen();
         for(Button button:toolWidgets) { button.visible=editable; button.active=editable; }
-        for(Button button:sizeWidgets) { button.visible=editable && !customMenu; button.active=editable; }
-        for(Button button:toleranceWidgets) { button.visible=editable && !customMenu; button.active=editable; }
+        for(Button button:sizeWidgets) { button.visible=editable; button.active=editable; }
+        for(Button button:toleranceWidgets) { button.visible=editable; button.active=editable; }
         undoButton.visible=editable; redoButton.visible=editable;
         undoButton.active=editable && canvas.canUndo(); redoButton.active=editable && canvas.canRedo();
         pickerButton.visible=editable && !customMenu; pickerButton.active=editable;
         pickerCloseButton.visible=editable && customMenu; pickerCloseButton.active=editable;
         hex.setVisible(editable && customMenu); hex.setEditable(editable && customMenu);
         favoriteButton.visible=editable && customMenu; favoriteButton.active=editable;
-        title.setVisible(editable && !customMenu); title.setEditable(editable && !customMenu);
+        title.setVisible(editable); title.setEditable(editable);
         if(!customMenu || !editable) hex.setFocused(false);
-        if(customMenu || !editable) title.setFocused(false);
+        if(!editable) title.setFocused(false);
         saveButton.active=!saveAttempt.waiting() && !title.getValue().trim().isEmpty();
         saveButton.setMessage(text(saveAttempt.frozen()?"retry":"save"));
         closeButton.visible=saveAttempt.frozen() && !saveAttempt.waiting();
         refreshFavoriteButton();
     }
 
-    private static String formatAmount(int amount) {
-        return String.format(Locale.ROOT,"%,d",Math.max(0,amount)).replace(',',' ');
+    private static String formatPercent(int amount,int capacity) {
+        return Math.min(100,((long)Math.max(0,amount)*100+capacity/2L)/capacity)+"%";
     }
 
     private static Component text(String key,Object... args) { return Component.translatable("paradisepaints.editor."+key,args); }

@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 
 public class ParadisepaintsClient implements ClientModInitializer {
-    public static final int PROTOCOL=5;
+    public static final int PROTOCOL=6;
     @Override public void onInitializeClient() {
         PayloadTypeRegistry.clientboundPlay().register(PaintPayload.TYPE, PaintPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(PaintPayload.TYPE, PaintPayload.CODEC);
@@ -22,17 +22,17 @@ public class ParadisepaintsClient implements ClientModInitializer {
                 // Advertise our own version even on mismatch so the server can explain rejection.
                 ClientPlayNetworking.send(new PaintPayload(ByteBuffer.allocate(37).put((byte)0).putInt(PROTOCOL)
                         .put(ClientBuildIdentity.sha256()).array()));
-            } else if(op==1 && in.remaining()>=16+2+1+1+12+16384+1024) {
+            } else if(op==1 && in.remaining()>=16+2+1+1+16+16384+1024) {
                 UUID session=new UUID(in.getLong(),in.getLong());
                 int titleLength=Short.toUnsignedInt(in.getShort());
-                if(titleLength<1 || titleLength>128 || in.remaining()!=titleLength+1+12+16384+1024) return;
+                if(titleLength<1 || titleLength>128 || in.remaining()!=titleLength+1+16+16384+1024) return;
                 byte[] titleBytes=new byte[titleLength]; in.get(titleBytes);
                 String title=new String(titleBytes,java.nio.charset.StandardCharsets.UTF_8);
-                boolean pigments=in.get()!=0; int red=in.getInt(),green=in.getInt(),blue=in.getInt();
-                if(red<0 || green<0 || blue<0) return;
+                boolean pigments=in.get()!=0; int red=in.getInt(),green=in.getInt(),blue=in.getInt(),capacity=in.getInt();
+                if(capacity<1 || red<0 || green<0 || blue<0 || red>capacity || green>capacity || blue>capacity) return;
                 byte[] pixels=new byte[16384]; in.get(pixels);
                 int[] palette=new int[256]; for(int i=0;i<256;i++) palette[i]=in.getInt();
-                client.execute(() -> client.gui.setScreen(new PaintScreen(session,title,pixels,palette,pigments,red,green,blue)));
+                client.execute(() -> client.gui.setScreen(new PaintScreen(session,title,pixels,palette,pigments,red,green,blue,capacity)));
             } else if(op==3 && in.remaining()==17) {
                 UUID session=new UUID(in.getLong(),in.getLong()); int result=Byte.toUnsignedInt(in.get());
                 if(result>2) return;
