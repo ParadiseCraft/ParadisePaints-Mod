@@ -36,7 +36,8 @@ public final class CanvasTexture implements AutoCloseable {
     }
 
     public void draw(GuiGraphicsExtractor graphics,int x,int y,int width,int height) {
-        graphics.blit(RenderPipelines.GUI_TEXTURED,location,x,y,0,0,width,height,128,128);
+        // Destination may be scaled, but the sampled UV region is always the one 128x128 canvas.
+        graphics.blit(RenderPipelines.GUI_TEXTURED,location,x,y,0,0,width,height,128,128,128,128);
     }
 
     private static int abgr(int argb) {
