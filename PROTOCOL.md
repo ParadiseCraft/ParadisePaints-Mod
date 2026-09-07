@@ -22,8 +22,8 @@ The packet ceiling is 18000 bytes. Painting titles are 1–32 Unicode code point
 contain no control characters, and occupy at most 128 UTF-8 bytes.
 
 The server initiates HELLO after joining and the client advertises its own version
-even on mismatch. OPEN requires permissions, ownership, a reachable easel containing
-the original map, and an exclusive painting lock. The random session UUID is bound
+even on mismatch. OPEN requires server-side painting access, recorded authorship for
+an existing painting, a reachable easel containing the original item, and an exclusive editing lock. The random session UUID is bound
 to the sending player and server-selected map ID. SAVE may change the title; the
 server validates both the title and pixels. DRAFT changes only pixels. When RGB
 pigments are enabled for the session, OPEN includes the balances of the physical
@@ -51,11 +51,11 @@ the canvas is frozen and every retry uses the identical snapshot.
 
 Reconnection creates a new session UUID and may restore a stored draft only if its
 base painting revision still matches. Disconnect releases its lock after any
-in-flight write finishes. The original map remains in the easel inventory throughout
-editing and after SAVE. The server rechecks the easel, world, reach, map identity,
-permissions, authorship and moderation status for DRAFT and SAVE. Retrieval requires
-a separate sneak-right-click with an empty hand. MapLockPlus copy protection is
-independent of the exclusive editing-session lock.
+in-flight write finishes. The original canvas or painting remains in the easel inventory throughout
+editing and after SAVE. The server rechecks the easel, world, reach, painting identity,
+server access, authorship and moderation status for DRAFT and SAVE. Retrieval requires
+a separate sneak-right-click with an empty hand. ParadisePaints never writes
+MapLockPlus lock tags; licensing is a separate workflow after retrieval.
 
 Changing this layout requires updating both implementations and a protocol-version
 decision. A handshake and session token never substitute for authorization.
