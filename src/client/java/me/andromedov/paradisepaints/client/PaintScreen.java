@@ -137,13 +137,14 @@ public final class PaintScreen extends Screen {
         });
         favoriteButton=addRenderableWidget(Button.builder(Component.empty(),b->toggleFavorite())
                 .bounds(panel+panelWidth-22,hexY,22,18).build());
-        favoriteY=hexY+24;
+        // Keep the heading fully below the 18px HEX field instead of drawing through its lower edge.
+        favoriteY=hexY+34;
         favoriteWidth=panelWidth-25;
         favoriteHeight=12;
 
         int paletteBottom=recentGridY+cell*2;
         int customBottom=favoriteY+favoriteHeight;
-        titleY=Math.max(paletteBottom,customBottom)+7;
+        titleY=Math.max(paletteBottom,customBottom)+13;
         paintY=titleY+24;
 
         title=addRenderableWidget(new EditBox(font,panel,titleY,panelWidth,20,text("title")));
@@ -185,6 +186,7 @@ public final class PaintScreen extends Screen {
             } else {
                 renderPalette(g);
             }
+            label(g,text("title").getString(),panel,titleY-11,panelWidth,0xff8996a7);
             if(pigments) renderPaintStock(g);
         } else {
             int y=58;
