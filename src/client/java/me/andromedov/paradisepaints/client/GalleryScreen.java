@@ -9,6 +9,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.jspecify.annotations.NonNull;
 
 /** Server-fed moderation view. There is deliberately no client packet that can request or authorize this data. */
@@ -95,7 +96,7 @@ public final class GalleryScreen extends Screen {
     }
     private static Component text(String key,Object... args) { return Component.translatable("paradisepaints.gallery."+key,args); }
     @Override public boolean mouseClicked(@NonNull MouseButtonEvent event,boolean doubleClick) {
-        if(event.button()==0 && selectedMap<0) {
+        if(event.button()==InputConstants.MOUSE_BUTTON_LEFT && selectedMap<0) {
             int columns=width>=340?2:1;
             int tileWidth=Math.min(390,(width-24-(columns-1)*12)/columns),tileHeight=132;
             int startX=(width-(tileWidth*columns+(columns-1)*12))/2,startY=30,index=0;

@@ -119,10 +119,11 @@ publishing {
 }
 
 val collectArtifacts = tasks.register<Sync>("collectArtifacts") {
-    dependsOn(":jar", ":minecraft-1.21.11:remapJar", ":minecraft-26.1.2:jar")
+    dependsOn(":jar", ":minecraft-1.21.11:remapJar", ":minecraft-26.1.2:jar", ":minecraft-26.3:jar")
     into(layout.buildDirectory.dir("distributions"))
     from(layout.buildDirectory.dir("libs")) { include("paradisepaints-fabric-*.jar"); exclude("*sources*") }
-    from(project(":minecraft-1.21.11").layout.projectDirectory.dir("build/libs")) { include("paradisepaints-fabric-*.jar"); exclude("*dev*", "*sources*") }
-    from(project(":minecraft-26.1.2").layout.projectDirectory.dir("build/26.1.2/libs")) { include("paradisepaints-fabric-*.jar"); exclude("*sources*") }
+    from(project(":minecraft-1.21.11").layout.buildDirectory.dir("libs")) { include("paradisepaints-fabric-*.jar"); exclude("*dev*", "*sources*") }
+    from(project(":minecraft-26.1.2").layout.buildDirectory.dir("libs")) { include("paradisepaints-fabric-*.jar"); exclude("*sources*") }
+    from(project(":minecraft-26.3").layout.buildDirectory.dir("libs")) { include("paradisepaints-fabric-*.jar"); exclude("*sources*") }
 }
 tasks.build { dependsOn(collectArtifacts) }

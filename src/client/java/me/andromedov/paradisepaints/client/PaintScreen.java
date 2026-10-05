@@ -11,7 +11,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 public final class PaintScreen extends Screen {
     private static final String[] TOOLS={"pencil","eraser","fill","replace","line","picker"};
@@ -412,7 +412,7 @@ public final class PaintScreen extends Screen {
     @Override public boolean mouseClicked(@NonNull MouseButtonEvent event,boolean doubleClick) {
         if(saveAttempt.frozen()) return super.mouseClicked(event,doubleClick);
         double mx=event.x(),my=event.y();
-        if(event.button()==0 && customMenu) {
+        if(event.button()==InputConstants.MOUSE_BUTTON_LEFT && customMenu) {
             if(mx>=pickerX && mx<pickerX+pickerWidth && my>=pickerY && my<pickerY+pickerHeight) {
                 pickerDrag=1; lastPickerX=lastPickerY=Integer.MIN_VALUE; updateCustomFromPointer(mx,my,1,true); return true;
             }
@@ -426,7 +426,7 @@ public final class PaintScreen extends Screen {
                 return true;
             }
         }
-        if(event.button()==0 && !customMenu && mx>=gridX && mx<gridX+8*cell) {
+        if(event.button()==InputConstants.MOUSE_BUTTON_LEFT && !customMenu && mx>=gridX && mx<gridX+8*cell) {
             if(my>=gridY && my<gridY+2*cell) {
                 int at=(int)(mx-gridX)/cell+8*((int)(my-gridY)/cell);
                 chooseMap(vanillaColors[at]); return true;
@@ -440,8 +440,8 @@ public final class PaintScreen extends Screen {
         }
         if(inside(mx,my)) {
             int x=(int)(mx-left)/scale,y=(int)(my-top)/scale;
-            if(event.button()==1 || (event.button()==0 && tool==5)) { chooseMap(canvas.color(x,y)); return true; }
-            if(event.button()!=0) return false;
+            if(event.button()==InputConstants.MOUSE_BUTTON_RIGHT || (event.button()==InputConstants.MOUSE_BUTTON_LEFT && tool==5)) { chooseMap(canvas.color(x,y)); return true; }
+            if(event.button()!=InputConstants.MOUSE_BUTTON_LEFT) return false;
             hex.setFocused(false); title.setFocused(false); canvas.beginStroke(); lastX=startX=x; lastY=startY=y;
             if(tool==2 || tool==3) canvas.fill(x,y,color,tolerance,colors,tool==3);
             else { drawing=true; if(tool!=4) canvas.line(x,y,x,y,brush,tool==1?0:color); }
@@ -451,12 +451,12 @@ public final class PaintScreen extends Screen {
     }
 
     @Override public boolean mouseDragged(@NonNull MouseButtonEvent event,double dx,double dy) {
-        if(pickerDrag!=0 && event.button()==0 && !saveAttempt.frozen()) {
+        if(pickerDrag!=0 && event.button()==InputConstants.MOUSE_BUTTON_LEFT && !saveAttempt.frozen()) {
             double x=Math.max(pickerX,Math.min(pickerX+pickerWidth-1,event.x()));
             double y=Math.max(pickerY,Math.min(pickerY+pickerHeight-1,event.y()));
             updateCustomFromPointer(x,y,pickerDrag,false); return true;
         }
-        if(drawing && event.button()==0 && !saveAttempt.frozen()) {
+        if(drawing && event.button()==InputConstants.MOUSE_BUTTON_LEFT && !saveAttempt.frozen()) {
             if(!inside(event.x(),event.y())) { lastX=-1; return true; }
             int x=(int)(event.x()-left)/scale,y=(int)(event.y()-top)/scale;
             if(tool!=4) canvas.line(lastX<0?x:lastX,lastX<0?y:lastY,x,y,brush,tool==1?0:color);
@@ -466,10 +466,10 @@ public final class PaintScreen extends Screen {
     }
 
     @Override public boolean mouseReleased(@NonNull MouseButtonEvent event) {
-        if(event.button()==0 && pickerDrag!=0) {
+        if(event.button()==InputConstants.MOUSE_BUTTON_LEFT && pickerDrag!=0) {
             pickerDrag=0; lastPickerX=lastPickerY=Integer.MIN_VALUE; remember(color); setHex(requestedRgb); return true;
         }
-        if(event.button()==0 && drawing) {
+        if(event.button()==InputConstants.MOUSE_BUTTON_LEFT && drawing) {
             if(tool==4 && !saveAttempt.frozen() && inside(event.x(),event.y()))
                 canvas.line(startX,startY,(int)(event.x()-left)/scale,(int)(event.y()-top)/scale,brush,color);
             drawing=false; updateButtons(); return true;
@@ -478,11 +478,11 @@ public final class PaintScreen extends Screen {
     }
 
     @Override public boolean keyPressed(@NonNull KeyEvent event) {
-        if(!saveAttempt.frozen() && !hex.isFocused() && !title.isFocused() && (event.modifiers()&(GLFW.GLFW_MOD_CONTROL|GLFW.GLFW_MOD_SUPER))!=0) {
-            if(event.key()==GLFW.GLFW_KEY_Z) {
-                drawing=false; if((event.modifiers()&GLFW.GLFW_MOD_SHIFT)!=0) canvas.redo(); else canvas.undo(); updateButtons(); return true;
+        if(!saveAttempt.frozen() && !hex.isFocused() && !title.isFocused() && (event.modifiers()&(InputConstants.MOD_CONTROL|InputConstants.MOD_SUPER))!=0) {
+            if(event.key()==InputConstants.KEY_Z) {
+                drawing=false; if(event.hasShiftDown()) canvas.redo(); else canvas.undo(); updateButtons(); return true;
             }
-            if(event.key()==GLFW.GLFW_KEY_Y) { drawing=false; canvas.redo(); updateButtons(); return true; }
+            if(event.key()==InputConstants.KEY_Y) { drawing=false; canvas.redo(); updateButtons(); return true; }
         }
         return super.keyPressed(event);
     }
