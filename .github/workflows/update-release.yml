@@ -1,0 +1,94 @@
+name: Update release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing release tag to append files to (for example v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: paradisepaints-release
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out verified main sources
+        uses: actions/checkout@v7.0.1
+      - name: Verify existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"
+          immutable="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.immutable')"
+          test "$immutable" != true || { echo 'This release is immutable; create a new release'; exit 1; }
+      - name: Set up Java 25
+        uses: actions/setup-java@v5.7.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6.3.0
+      - name: Build and test every supported Minecraft version
+        run: ./gradlew clean build --no-daemon
+      - name: Attest release JAR provenance
+        uses: actions/attest-build-provenance@v4.2.2
+        with:
+          subject-path: build/distributions/*.jar
+      - name: Append new JARs and update checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          published="$(mktemp -d)"
+          asset_names="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          mapfile -t assets <<< "$asset_names"
+
+          # Download existing JARs to compute checksums from their actual bytes.
+          for name in "${assets[@]}"; do
+            if [[ "$name" =~ ^paradisepaints-fabric-[A-Za-z0-9.+_-]+\.jar$ ]]; then
+              gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$name" --dir "$published"
+            fi
+          done
+          if printf '%s\n' "${assets[@]}" | grep -Fxq SHA256SUMS; then
+            gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS --dir "$published"
+          fi
+
+          # Existing filenames are immutable. Bump mod_version for changed builds.
+          for jar in build/distributions/paradisepaints-fabric-*.jar; do
+            test -f "$jar"
+            name="$(basename "$jar")"
+            if test -f "$published/$name"; then
+              if cmp -s "$jar" "$published/$name"; then
+                echo "Unchanged: $name"
+              else
+                echo "Kept published $name; bump mod_version to publish its changed build."
+              fi
+              continue
+            fi
+            gh release upload "$RELEASE_TAG" "$jar" --repo "$GITHUB_REPOSITORY"
+            cp "$jar" "$published/$name"
+            echo "Added: $name"
+          done
+
+          # Retain checksums for every published version, including older JARs.
+          (cd "$published" && LC_ALL=C sha256sum paradisepaints-fabric-*.jar | LC_ALL=C sort -k2 > SHA256SUMS.next)
+          if ! test -f "$published/SHA256SUMS" || ! cmp -s "$published/SHA256SUMS" "$published/SHA256SUMS.next"; then
+            mv "$published/SHA256SUMS.next" "$published/SHA256SUMS"
+            gh release upload "$RELEASE_TAG" "$published/SHA256SUMS" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            echo 'Unchanged: SHA256SUMS'
+          fi
